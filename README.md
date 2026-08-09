@@ -60,9 +60,28 @@ same college coordinates/15m radius as the original — edit
 flask_app/
 ├── app.py                  # All routes + ported business logic
 ├── requirements.txt
+├── Dockerfile              # Container definition
+├── docker-compose.yml      # Orchestrates Flask + PostgreSQL
 ├── templates/
 │   └── index.html          # Single-page shell
 └── static/
     ├── css/style.css
     └── js/app.js            # Tabs, camera capture, API calls, rendering
 ```
+
+## Docker Setup
+
+### Option 1: Run with Docker Compose (Flask + PostgreSQL)
+
+```bash
+docker compose up --build
+```
+This automatically boots up both the **PostgreSQL** database service and the **Flask application** service on port `4000`.
+
+### Option 2: Pull pre-built image from GitHub Container Registry
+
+```bash
+docker pull ghcr.io/bmvinaykumarb-crypto/vinay.attadence:latest
+docker run -p 4000:4000 ghcr.io/bmvinaykumarb-crypto/vinay.attadence:latest
+```
+
