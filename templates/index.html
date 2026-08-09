@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Lab Attendance</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div id="location-gate" class="gate-screen">
+  <div class="gate-card">
+    <h2>📍 Location Verification</h2>
+    <p id="location-status" class="status-msg info">Waiting for location permission… please allow location access in your browser.</p>
+  </div>
+</div>
+
+<div id="app-root" class="app-root hidden">
+
+  <header class="topbar">
+    <h1><span class="text-neon-cyan">📝 Smart Lab Attendance</span></h1>
+    <div class="topbar-actions">
+      <span id="role-badge" class="role-badge {% if user_role == 'admin' %}role-admin{% elif user_role == 'faculty' %}role-faculty{% endif %}" {% if user_role == 'student' %}style="display:none"{% endif %}>
+        {{ '🛡️ Admin' if user_role == 'admin' else '👨‍🏫 Faculty' if user_role == 'faculty' else '' }}
+      </span>
+      <button id="faculty-login-btn" class="btn btn-secondary" {% if user_role != 'student' %}style="display:none"{% endif %}>🔐 Faculty Login</button>
+      <button id="admin-login-btn" class="btn btn-admin" {% if user_role != 'student' %}style="display:none"{% endif %}>🔑 Admin Login</button>
+      <button id="logout-btn" class="btn btn-secondary" {% if user_role == 'student' %}style="display:none"{% endif %}>Logout</button>
+    </div>
+  </header>
+
+  <div id="faculty-login-panel" class="card hidden">
+    <h3>🔐 Faculty Sign In</h3>
+    <div class="form-row">
+      <input type="email" id="faculty-email" placeholder="professor@college.edu">
+      <input type="password" id="faculty-password" placeholder="••••••••">
+    </div>
+    <div class="form-row">
+      <button id="faculty-signin-btn" class="btn btn-primary">Sign In as Faculty</button>
+      <button id="faculty-cancel-btn" class="btn btn-secondary">Cancel</button>
+    </div>
+    <p id="faculty-login-error" class="status-msg error hidden"></p>
+  </div>
+
+  <div id="admin-login-panel" class="card hidden">
+    <h3>🔑 Admin Sign In</h3>
+    <div class="section-note" style="border-left-color: var(--accent-purple)">Admin access provides faculty management, class assignments, and student record viewing capabilities.</div>
+    <div class="form-row">
+      <input type="email" id="admin-email" placeholder="admin@college.edu">
+      <input type="password" id="admin-password" placeholder="••••••••">
+    </div>
+    <div class="form-row">
+      <button id="admin-signin-btn" class="btn btn-admin">Sign In as Admin</button>
+      <button id="admin-cancel-btn" class="btn btn-secondary">Cancel</button>
+    </div>
+    <p id="admin-login-error" class="status-msg error hidden"></p>
+  </div>
+
+  <div class="hero">
+    <h2>Secure Attendance Dashboard</h2>
+    <p>Scan QR codes using your camera feed, manage student registers, and export reports directly from your secure session.</p>
+  </div>
+
+  <div class="metrics-row">
+    <div class="metric-card"><div class="metric-label">Total Records</div><div class="metric-value" id="metric-total">–</div></div>
+    <div class="metric-card"><div class="metric-label">Today's Marks</div><div class="metric-value" id="metric-today">–</div></div>
+    <div class="metric-card"><div class="metric-label">Unique Students</div><div class="metric-value" id="metric-unique">–</div></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab-buttons" id="tab-buttons"></div>
+    <div class="tab-panels" id="tab-panels"></div>
+  </div>
+
+</div>
+
+<div id="scan-popup" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-icon" id="popup-icon"></div>
+    <h2 id="popup-heading"></h2>
+    <div class="modal-message" id="popup-message"></div>
+    <div class="modal-footer" id="popup-footer"></div>
+  </div>
+</div>
+
+<script>
+  window.APP_CONFIG = {
+    userRole: {{ user_role|tojson }},
+    username: {{ username|tojson }},
+    subjectsByYearSem: {{ subjects_by_year_sem|tojson }},
+    allSubjects: {{ all_subjects|tojson }},
+    selectedSubject: {{ selected_subject|tojson }},
+    faceRecognitionAvailable: {{ face_recognition_available|tojson }},
+    allowedRadius: {{ allowed_radius|tojson }},
+    collegeLat: {{ college_lat|tojson }},
+    collegeLon: {{ college_lon|tojson }}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

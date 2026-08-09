@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+*.db
+lab_attendance.db
+build.log
+{templates,static
+dlib_src/
