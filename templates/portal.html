@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Lab Attendance — Sign In</title>
+  <meta name="description" content="Secure sign-in portal for Smart Lab Attendance. Students, Faculty and Admins.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #05071a;
+      --surface:  #0b0f2a;
+      --card:     #111533;
+      --border:   rgba(130,100,255,0.22);
+      --primary:  #6b52f5;
+      --pgrad:    linear-gradient(135deg, #6b52f5 0%, #9b6bff 100%);
+      --cyan:     #22d3ee;
+      --green:    #4ade80;
+      --red:      #f87171;
+      --amber:    #fbbf24;
+      --text:     #e8e8f8;
+      --muted:    #7b7fa6;
+      --radius:   18px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background ─────────────────────────────────────────────────── */
+    .portal-bg {
+      position: fixed; inset: 0;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.14;
+    }
+    .orb-1 { width: 600px; height: 600px; background: #6b52f5; top: -200px; left: -200px; animation: drift 18s ease-in-out infinite alternate; }
+    .orb-2 { width: 500px; height: 500px; background: #06b6d4; bottom: -150px; right: -150px; animation: drift 22s ease-in-out infinite alternate-reverse; }
+    .orb-3 { width: 350px; height: 350px; background: #9b6bff; top: 45%; left: 55%; transform: translate(-50%,-50%); animation: drift 14s ease-in-out infinite alternate; }
+    @keyframes drift {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(50px,30px) scale(1.08); }
+    }
+    /* Grid dots */
+    .portal-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image: radial-gradient(rgba(100,80,255,0.08) 1px, transparent 1px);
+      background-size: 36px 36px;
+    }
+
+    /* ── Main layout ────────────────────────────────────────────────── */
+    .portal-wrap {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* ── Hero header ────────────────────────────────────────────────── */
+    .portal-hero {
+      text-align: center;
+      margin-bottom: 44px;
+    }
+    .portal-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .portal-logo-icon {
+      width: 60px; height: 60px;
+      background: var(--pgrad);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem;
+      box-shadow: 0 0 32px rgba(107,82,245,0.45);
+    }
+    .portal-logo-text {
+      text-align: left;
+    }
+    .portal-title {
+      font-size: 2.6rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #fff 30%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.1;
+    }
+    .portal-subtitle {
+      font-size: 1rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    /* Animated badge line */
+    .portal-badges {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .portal-badge {
+      font-size: 0.72rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ── Card ─────────────────────────────────────────────────────────── */
+    .portal-card {
+      width: 100%;
+      max-width: 640px;
+      background: rgba(17,21,51,0.85);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      backdrop-filter: blur(28px);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(107,82,245,0.06);
+      overflow: hidden;
+    }
+
+    /* ── Tab row ─────────────────────────────────────────────────────── */
+    .portal-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+    }
+    .portal-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 18px 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.25s;
+      position: relative;
+    }
+    .portal-tab::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--pgrad);
+      transform: scaleX(0);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      border-radius: 2px 2px 0 0;
+    }
+    .portal-tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .portal-tab.active { color: #fff; }
+    .portal-tab.active::after { transform: scaleX(1); }
+    .portal-tab-icon { font-size: 1.1rem; }
+
+    /* Tab highlights */
+    .portal-tab[data-tab="student"].active { background: rgba(107,82,245,0.08); }
+    .portal-tab[data-tab="faculty"].active { background: rgba(6,182,212,0.08); }
+    .portal-tab[data-tab="admin"].active   { background: rgba(251,191,36,0.08); }
+
+    /* ── Panel body ──────────────────────────────────────────────────── */
+    .portal-panel {
+      padding: 36px 40px 40px;
+      display: none;
+      animation: fadeUp 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .portal-panel.active { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel-head {
+      margin-bottom: 28px;
+    }
+    .panel-head-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .panel-icon-wrap {
+      width: 46px; height: 46px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+    .student-icon-wrap  { background: rgba(107,82,245,0.15); border: 1px solid rgba(107,82,245,0.3); }
+    .faculty-icon-wrap  { background: rgba(6,182,212,0.12);  border: 1px solid rgba(6,182,212,0.3); }
+    .admin-icon-wrap    { background: rgba(251,191,36,0.12);  border: 1px solid rgba(251,191,36,0.3); }
+
+    .panel-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+    }
+    .panel-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.6;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      border-left: 3px solid var(--primary);
+    }
+    .panel-desc.faculty-border { border-left-color: var(--cyan); }
+    .panel-desc.admin-border   { border-left-color: var(--amber); }
+
+    /* ── Form ────────────────────────────────────────────────────────── */
+    .p-form { display: flex; flex-direction: column; gap: 18px; margin-top: 24px; }
+    .p-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .p-field { display: flex; flex-direction: column; gap: 8px; }
+    .p-label {
+      font-size: 0.77rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+    .p-input-wrap { position: relative; display: flex; align-items: center; }
+    .p-input-icon {
+      position: absolute; left: 14px;
+      font-size: 0.95rem;
+      pointer-events: none;
+    }
+    .p-input {
+      width: 100%;
+      padding: 13px 14px 13px 42px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    .p-input:focus {
+      border-color: var(--primary);
+      background: rgba(107,82,245,0.07);
+      box-shadow: 0 0 0 3px rgba(107,82,245,0.12);
+    }
+    .p-input::placeholder { color: rgba(255,255,255,0.18); }
+    .p-eye {
+      position: absolute; right: 12px;
+      background: none; border: none;
+      cursor: pointer; font-size: 1rem;
+      color: var(--muted); padding: 4px;
+      transition: color 0.2s;
+    }
+    .p-eye:hover { color: var(--text); }
+
+    /* Password hint */
+    .p-hint {
+      font-size: 0.76rem;
+      color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .p-hint strong { color: var(--amber); font-weight: 600; }
+
+    /* ── Buttons ─────────────────────────────────────────────────────── */
+    .p-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 15px 24px;
+      border-radius: 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.25s;
+      width: 100%;
+      letter-spacing: 0.01em;
+    }
+    .p-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .p-btn-student {
+      background: #fff;
+      color: #1a1240;
+      box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+    }
+    .p-btn-student:hover:not(:disabled) {
+      background: #f0eeff;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(255,255,255,0.2);
+    }
+
+    .p-btn-faculty {
+      background: var(--pgrad);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(107,82,245,0.4);
+    }
+    .p-btn-faculty:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(107,82,245,0.55);
+    }
+
+    .p-btn-admin {
+      background: linear-gradient(135deg, #d97706, #f59e0b);
+      color: #1a0d00;
+      box-shadow: 0 4px 20px rgba(251,191,36,0.3);
+    }
+    .p-btn-admin:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(251,191,36,0.45);
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────────────── */
+    .p-spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .p-btn-student .p-spinner { border: 2px solid rgba(26,18,64,0.2); border-top-color: var(--primary); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+
+    /* ── Error / Success msg ──────────────────────────────────────────── */
+    .p-msg {
+      padding: 11px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+    .p-msg.error   { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.25); color: var(--red); }
+    .p-msg.success { background: rgba(74,222,128,0.08);  border: 1px solid rgba(74,222,128,0.25);  color: var(--green); }
+
+    /* ── Divider ─────────────────────────────────────────────────────── */
+    .p-divider {
+      display: flex; align-items: center; gap: 12px;
+      color: var(--muted); font-size: 0.78rem;
+    }
+    .p-divider::before, .p-divider::after {
+      content: ''; flex: 1;
+      height: 1px; background: rgba(255,255,255,0.07);
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    .portal-footer {
+      text-align: center;
+      margin-top: 32px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .portal-footer a { color: var(--muted); text-decoration: none; }
+
+    /* ── Responsive ──────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .portal-title { font-size: 1.9rem; }
+      .portal-panel { padding: 24px 20px 28px; }
+      .p-row { grid-template-columns: 1fr; }
+      .portal-tab { font-size: 0.78rem; padding: 14px 8px; gap: 5px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="portal-bg">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+<div class="portal-grid"></div>
+
+<div class="portal-wrap">
+
+  <!-- Hero -->
+  <div class="portal-hero">
+    <div class="portal-logo">
+      <div class="portal-logo-icon">🎓</div>
+    </div>
+    <h1 class="portal-title">Smart Lab Attendance</h1>
+    <p class="portal-subtitle">Sign in to access the attendance system</p>
+    <div class="portal-badges">
+      <span class="portal-badge">🔒 Secure</span>
+      <span class="portal-badge">📍 Location Verified</span>
+      <span class="portal-badge">🤳 Face Authenticated</span>
+    </div>
+  </div>
+
+  <!-- Card -->
+  <div class="portal-card">
+
+    <!-- Tabs -->
+    <div class="portal-tabs" role="tablist">
+      <button class="portal-tab active" data-tab="student" onclick="switchTab('student')" id="tab-student" role="tab">
+        <span class="portal-tab-icon">🎓</span> Student Login
+      </button>
+      <button class="portal-tab" data-tab="faculty" onclick="switchTab('faculty')" id="tab-faculty" role="tab">
+        <span class="portal-tab-icon">👨‍🏫</span> Faculty Login
+      </button>
+      <button class="portal-tab" data-tab="admin" onclick="switchTab('admin')" id="tab-admin" role="tab">
+        <span class="portal-tab-icon">🛡️</span> Admin Login
+      </button>
+    </div>
+
+    <!-- ============ STUDENT PANEL ============ -->
+    <div class="portal-panel active" id="panel-student" role="tabpanel">
+      <div class="panel-head">
+        <div class="panel-head-row">
+          <div class="panel-icon-wrap student-icon-wrap">🎓</div>
+          <div>
+            <div class="panel-title">Student Sign In</div>
+          </div>
+        </div>
+        <p class="panel-desc">Enter your Roll Number and the common student password to access attendance features.</p>
+      </div>
+
+      <div class="p-form">
+        <div class="p-row">
+          <div class="p-field">
+            <label class="p-label" for="s-roll">Roll Number</label>
+            <div class="p-input-wrap">
+              <span class="p-input-icon">🎫</span>
+              <input type="text" id="s-roll" class="p-input" placeholder="e.g. 220301, U16VH24S0208"
+                     autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+          <div class="p-field">
+            <label class="p-label" for="s-pass">Password</label>
+            <div class="p-input-wrap">
+              <span class="p-input-icon">🔑</span>
+              <input type="password" id="s-pass" class="p-input" placeholder="••••••••">
+              <button class="p-eye" type="button" onclick="toggleEye('s-pass', this)">👁</button>
+            </div>
+          </div>
+        </div>
+
+        <p id="s-error" class="p-msg error hidden"></p>
+
+        <button id="s-btn" class="p-btn p-btn-student" onclick="studentLogin()">
+          <span id="s-btn-text">🚀 Sign In as Student</span>
+          <span id="s-btn-spin" class="p-spinner hidden"></span>
+        </button>
+
+        <p class="p-hint">🔑 Common student password: <strong>student@123</strong></p>
+      </div>
+    </div>
+
+    <!-- ============ FACULTY PANEL ============ -->
+    <div class="portal-panel" id="panel-faculty" role="tabpanel">
+      <div class="panel-head">
+        <div class="panel-head-row">
+          <div class="panel-icon-wrap faculty-icon-wrap">👨‍🏫</div>
+          <div>
+            <div class="panel-title">Faculty Sign In</div>
+          </div>
+        </div>
+        <p class="panel-desc faculty-border">Sign in with your faculty email and password to manage attendance and view records.</p>
+      </div>
+
+      <div class="p-form">
+        <div class="p-row">
+          <div class="p-field">
+            <label class="p-label" for="f-email">Email</label>
+            <div class="p-input-wrap">
+              <span class="p-input-icon">📧</span>
+              <input type="email" id="f-email" class="p-input" placeholder="professor@college.edu">
+            </div>
+          </div>
+          <div class="p-field">
+            <label class="p-label" for="f-pass">Password</label>
+            <div class="p-input-wrap">
+              <span class="p-input-icon">🔑</span>
+              <input type="password" id="f-pass" class="p-input" placeholder="••••••••">
+              <button class="p-eye" type="button" onclick="toggleEye('f-pass', this)">👁</button>
+            </div>
+          </div>
+        </div>
+
+        <p id="f-error" class="p-msg error hidden"></p>
+
+        <button id="f-btn" class="p-btn p-btn-faculty" onclick="facultyLogin()">
+          <span id="f-btn-text">🔐 Sign In as Faculty</span>
+          <span id="f-btn-spin" class="p-spinner hidden"></span>
+        </button>
+
+        <p class="p-hint">🔑 Faculty password: <strong>faculty123</strong></p>
+      </div>
+    </div>
+
+    <!-- ============ ADMIN PANEL ============ -->
+    <div class="portal-panel" id="panel-admin" role="tabpanel">
+      <div class="panel-head">
+        <div class="panel-head-row">
+          <div class="panel-icon-wrap admin-icon-wrap">🛡️</div>
+          <div>
+            <div class="panel-title">Admin Sign In</div>
+          </div>
+        </div>
+        <p class="panel-desc admin-border">Admin access provides faculty management, class assignments, and full student records.</p>
+      </div>
+
+      <div class="p-form">
+        <div class="p-row">
+          <div class="p-field">
+            <label class="p-label" for="a-email">Admin Email</label>
+            <div class="p-input-wrap">
+              <span class="p-input-icon">📧</span>
+              <input type="email" id="a-email" class="p-input" placeholder="admin@college.edu">
+            </div>
+          </div>
+          <div class="p-field">
+            <label class="p-label" for="a-pass">Password</label>
+            <div class="p-input-wrap">
+              <span class="p-input-icon">🔑</span>
+              <input type="password" id="a-pass" class="p-input" placeholder="••••••••">
+              <button class="p-eye" type="button" onclick="toggleEye('a-pass', this)">👁</button>
+            </div>
+          </div>
+        </div>
+
+        <p id="a-error" class="p-msg error hidden"></p>
+
+        <button id="a-btn" class="p-btn p-btn-admin" onclick="adminLogin()">
+          <span id="a-btn-text">🔑 Sign In as Admin</span>
+          <span id="a-btn-spin" class="p-spinner hidden"></span>
+        </button>
+
+        <p class="p-hint">🔑 Admin password: <strong>admin@123</strong></p>
+      </div>
+    </div>
+
+  </div><!-- /portal-card -->
+
+  <div class="portal-footer">
+    <p>🔒 Secure • Location-Verified • Face-Authenticated &nbsp;|&nbsp; Smart Lab Attendance System</p>
+  </div>
+
+</div><!-- /portal-wrap -->
+
+<script>
+// ─── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.portal-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.portal-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+// ─── Eye toggle ────────────────────────────────────────────────────────────
+function toggleEye(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// ─── Shared helpers ─────────────────────────────────────────────────────────
+function setBtn(btnId, textId, spinId, loading) {
+  document.getElementById(btnId).disabled = loading;
+  document.getElementById(textId).classList.toggle('hidden', loading);
+  document.getElementById(spinId).classList.toggle('hidden', !loading);
+}
+function showMsg(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'p-msg ' + type;
+  el.classList.remove('hidden');
+}
+function clearMsg(id) {
+  const el = document.getElementById(id);
+  el.textContent = '';
+  el.classList.add('hidden');
+}
+
+// ─── STUDENT LOGIN ──────────────────────────────────────────────────────────
+async function studentLogin() {
+  clearMsg('s-error');
+  const roll = document.getElementById('s-roll').value.trim();
+  const pwd  = document.getElementById('s-pass').value;
+  if (!roll) { showMsg('s-error', 'Please enter your Roll Number.', 'error'); return; }
+  if (!pwd)  { showMsg('s-error', 'Please enter your password.', 'error'); return; }
+
+  setBtn('s-btn', 's-btn-text', 's-btn-spin', true);
+  try {
+    const res = await fetch('/api/student-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roll_number: roll, password: pwd })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showMsg('s-error', '✅ Credentials verified! Starting location & face verification…', 'success');
+      setTimeout(() => {
+        window.location.href = '/student-login';  // goes to step 2 (session has roll)
+      }, 900);
+    } else {
+      showMsg('s-error', data.message || 'Login failed.', 'error');
+      setBtn('s-btn', 's-btn-text', 's-btn-spin', false);
+    }
+  } catch (e) {
+    showMsg('s-error', 'Network error. Please try again.', 'error');
+    setBtn('s-btn', 's-btn-text', 's-btn-spin', false);
+  }
+}
+
+// ─── FACULTY LOGIN ──────────────────────────────────────────────────────────
+async function facultyLogin() {
+  clearMsg('f-error');
+  const email = document.getElementById('f-email').value.trim();
+  const pwd   = document.getElementById('f-pass').value;
+  if (!email) { showMsg('f-error', 'Please enter your email.', 'error'); return; }
+  if (!pwd)   { showMsg('f-error', 'Please enter your password.', 'error'); return; }
+
+  setBtn('f-btn', 'f-btn-text', 'f-btn-spin', true);
+  try {
+    const res = await fetch('/api/faculty-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pwd })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showMsg('f-error', '✅ Welcome, Faculty! Redirecting…', 'success');
+      setTimeout(() => { window.location.href = '/app'; }, 900);
+    } else {
+      showMsg('f-error', data.message || 'Login failed.', 'error');
+      setBtn('f-btn', 'f-btn-text', 'f-btn-spin', false);
+    }
+  } catch (e) {
+    showMsg('f-error', 'Network error. Please try again.', 'error');
+    setBtn('f-btn', 'f-btn-text', 'f-btn-spin', false);
+  }
+}
+
+// ─── ADMIN LOGIN ─────────────────────────────────────────────────────────────
+async function adminLogin() {
+  clearMsg('a-error');
+  const email = document.getElementById('a-email').value.trim();
+  const pwd   = document.getElementById('a-pass').value;
+  if (!email) { showMsg('a-error', 'Please enter your admin email.', 'error'); return; }
+  if (!pwd)   { showMsg('a-error', 'Please enter your password.', 'error'); return; }
+
+  setBtn('a-btn', 'a-btn-text', 'a-btn-spin', true);
+  try {
+    const res = await fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pwd })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showMsg('a-error', '✅ Welcome, Admin! Redirecting…', 'success');
+      setTimeout(() => { window.location.href = '/app'; }, 900);
+    } else {
+      showMsg('a-error', data.message || 'Login failed.', 'error');
+      setBtn('a-btn', 'a-btn-text', 'a-btn-spin', false);
+    }
+  } catch (e) {
+    showMsg('a-error', 'Network error. Please try again.', 'error');
+    setBtn('a-btn', 'a-btn-text', 'a-btn-spin', false);
+  }
+}
+
+// ─── Enter key support ──────────────────────────────────────────────────────
+document.getElementById('s-roll').addEventListener('keydown', e => { if (e.key === 'Enter') studentLogin(); });
+document.getElementById('s-pass').addEventListener('keydown', e => { if (e.key === 'Enter') studentLogin(); });
+document.getElementById('f-email').addEventListener('keydown', e => { if (e.key === 'Enter') facultyLogin(); });
+document.getElementById('f-pass').addEventListener('keydown', e => { if (e.key === 'Enter') facultyLogin(); });
+document.getElementById('a-email').addEventListener('keydown', e => { if (e.key === 'Enter') adminLogin(); });
+document.getElementById('a-pass').addEventListener('keydown', e => { if (e.key === 'Enter') adminLogin(); });
+</script>
+</body>
+</html>

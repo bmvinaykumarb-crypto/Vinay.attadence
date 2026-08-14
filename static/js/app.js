@@ -118,72 +118,85 @@ function showPopup(success, message, rollNumber) {
 /* Faculty auth                                                        */
 /* ------------------------------------------------------------------ */
 function initAuth() {
-  const loginBtn = document.getElementById("faculty-login-btn");
+  // ── Logout (always present) ───────────────────────────────────────
   const logoutBtn = document.getElementById("logout-btn");
-  const panel = document.getElementById("faculty-login-panel");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      await fetch("/api/logout", { method: "POST" });
+      window.location.href = "/";   // send back to portal
+    });
+  }
+
+  // ── Faculty login panel (only exists if not using portal flow) ────
+  const loginBtn  = document.getElementById("faculty-login-btn");
+  const panel     = document.getElementById("faculty-login-panel");
   const cancelBtn = document.getElementById("faculty-cancel-btn");
   const signinBtn = document.getElementById("faculty-signin-btn");
-  const errorEl = document.getElementById("faculty-login-error");
+  const errorEl   = document.getElementById("faculty-login-error");
 
-  // Admin login elements
-  const adminLoginBtn = document.getElementById("admin-login-btn");
-  const adminPanel = document.getElementById("admin-login-panel");
+  if (loginBtn && panel) {
+    loginBtn.addEventListener("click", () => {
+      panel.classList.toggle("hidden");
+      const adminPanel = document.getElementById("admin-login-panel");
+      if (adminPanel) adminPanel.classList.add("hidden");
+    });
+  }
+  if (cancelBtn && panel) {
+    cancelBtn.addEventListener("click", () => panel.classList.add("hidden"));
+  }
+  if (signinBtn) {
+    signinBtn.addEventListener("click", async () => {
+      const email    = document.getElementById("faculty-email")?.value || "";
+      const password = document.getElementById("faculty-password")?.value || "";
+      const res  = await fetch("/api/faculty-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        if (errorEl) { errorEl.textContent = data.message; errorEl.classList.remove("hidden"); }
+        return;
+      }
+      window.location.reload();
+    });
+  }
+
+  // ── Admin login panel (only exists if not using portal flow) ──────
+  const adminLoginBtn  = document.getElementById("admin-login-btn");
+  const adminPanel     = document.getElementById("admin-login-panel");
   const adminCancelBtn = document.getElementById("admin-cancel-btn");
   const adminSigninBtn = document.getElementById("admin-signin-btn");
-  const adminErrorEl = document.getElementById("admin-login-error");
+  const adminErrorEl   = document.getElementById("admin-login-error");
 
-  loginBtn.addEventListener("click", () => {
-    panel.classList.toggle("hidden");
-    adminPanel.classList.add("hidden");
-  });
-  cancelBtn.addEventListener("click", () => panel.classList.add("hidden"));
-
-  signinBtn.addEventListener("click", async () => {
-    const email = document.getElementById("faculty-email").value;
-    const password = document.getElementById("faculty-password").value;
-    const res = await fetch("/api/faculty-login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+  if (adminLoginBtn && adminPanel) {
+    adminLoginBtn.addEventListener("click", () => {
+      adminPanel.classList.toggle("hidden");
+      if (panel) panel.classList.add("hidden");
     });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      errorEl.textContent = data.message;
-      errorEl.classList.remove("hidden");
-      return;
-    }
-    window.location.reload();
-  });
-
-  // Admin login
-  adminLoginBtn.addEventListener("click", () => {
-    adminPanel.classList.toggle("hidden");
-    panel.classList.add("hidden");
-  });
-  adminCancelBtn.addEventListener("click", () => adminPanel.classList.add("hidden"));
-
-  adminSigninBtn.addEventListener("click", async () => {
-    const email = document.getElementById("admin-email").value;
-    const password = document.getElementById("admin-password").value;
-    const res = await fetch("/api/admin-login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+  }
+  if (adminCancelBtn && adminPanel) {
+    adminCancelBtn.addEventListener("click", () => adminPanel.classList.add("hidden"));
+  }
+  if (adminSigninBtn) {
+    adminSigninBtn.addEventListener("click", async () => {
+      const email    = document.getElementById("admin-email")?.value || "";
+      const password = document.getElementById("admin-password")?.value || "";
+      const res  = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        if (adminErrorEl) { adminErrorEl.textContent = data.message; adminErrorEl.classList.remove("hidden"); }
+        return;
+      }
+      window.location.reload();
     });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      adminErrorEl.textContent = data.message;
-      adminErrorEl.classList.remove("hidden");
-      return;
-    }
-    window.location.reload();
-  });
-
-  logoutBtn.addEventListener("click", async () => {
-    await fetch("/api/logout", { method: "POST" });
-    window.location.reload();
-  });
+  }
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Summary metrics                                                      */
@@ -219,7 +232,9 @@ function tabDefinitions() {
     { id: "attendance", label: "👤 Face & QR Attendance", render: renderAttendanceTab },
     { id: "records", label: "📊 View Records", render: renderRecordsTab },
     { id: "manage", label: "🧑‍🎓 Manage Students & Faces", render: renderManageTab },
+    { id: "live-class", label: "📡 Live Class", render: renderLiveClassTab },
   ];
+
 }
 
 function initTabs() {
@@ -1606,6 +1621,220 @@ function renderAdminStudentsTab(panel) {
 
   // Initial load
   loadAdminRecords();
+}
+
+/* ------------------------------------------------------------------ */
+/* Tab: Live Class (Faculty)                                            */
+/* ------------------------------------------------------------------ */
+function renderLiveClassTab(panel) {
+  const subjectsByYearSem = CFG.subjectsByYearSem || {};
+
+  panel.innerHTML = `
+    <div class="section-note" style="border-left-color:#a78bfa">
+      📡 <strong>Live Class Session</strong> — Open a session so students can mark attendance from their dashboard in real time.
+    </div>
+
+    <!-- Open Session Form -->
+    <div class="card" style="margin-top:18px">
+      <h3 style="margin-bottom:14px">➕ Open a New Session</h3>
+      <div class="form-row" style="flex-wrap:wrap;gap:10px">
+        <select id="lc-year" style="flex:1;min-width:130px">
+          <option value="">-- Year --</option>
+          ${Object.keys(subjectsByYearSem).map(y => `<option value="${y}">${y}</option>`).join("")}
+        </select>
+        <select id="lc-sem" style="flex:1;min-width:130px" disabled>
+          <option value="">-- Semester --</option>
+        </select>
+        <select id="lc-subject" style="flex:1;min-width:160px" disabled>
+          <option value="">-- Subject --</option>
+        </select>
+        <button id="lc-open-btn" class="btn btn-primary" disabled style="white-space:nowrap">
+          📡 Open Session
+        </button>
+      </div>
+      <p id="lc-open-msg" class="status-msg hidden" style="margin-top:10px"></p>
+    </div>
+
+    <!-- Active Sessions -->
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <h3>🟢 Active Sessions</h3>
+        <button id="lc-refresh-btn" class="btn btn-secondary" style="padding:6px 14px;font-size:0.82rem">🔄 Refresh</button>
+      </div>
+      <div id="lc-active-list"><p class="status-msg info">Loading…</p></div>
+    </div>
+
+    <!-- Today's Session History -->
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin-bottom:14px">📋 Today's Session History</h3>
+      <div id="lc-history-list"><p class="status-msg info">Loading…</p></div>
+    </div>
+  `;
+
+  // ── Dropdown cascade ──────────────────────────────────────────────
+  const yearSel    = panel.querySelector("#lc-year");
+  const semSel     = panel.querySelector("#lc-sem");
+  const subjectSel = panel.querySelector("#lc-subject");
+  const openBtn    = panel.querySelector("#lc-open-btn");
+  const openMsg    = panel.querySelector("#lc-open-msg");
+
+  yearSel.addEventListener("change", () => {
+    const year = yearSel.value;
+    semSel.innerHTML = '<option value="">-- Semester --</option>';
+    subjectSel.innerHTML = '<option value="">-- Subject --</option>';
+    semSel.disabled = !year;
+    subjectSel.disabled = true;
+    openBtn.disabled = true;
+    if (!year) return;
+    Object.keys(subjectsByYearSem[year] || {}).forEach(sem => {
+      semSel.add(new Option(sem, sem));
+    });
+  });
+
+  semSel.addEventListener("change", () => {
+    const year = yearSel.value;
+    const sem  = semSel.value;
+    subjectSel.innerHTML = '<option value="">-- Subject --</option>';
+    subjectSel.disabled = !sem;
+    openBtn.disabled = true;
+    if (!sem) return;
+    (subjectsByYearSem[year][sem] || []).forEach(s => subjectSel.add(new Option(s, s)));
+  });
+
+  subjectSel.addEventListener("change", () => {
+    openBtn.disabled = !subjectSel.value;
+  });
+
+  // ── Open session ──────────────────────────────────────────────────
+  openBtn.addEventListener("click", async () => {
+    const subject  = subjectSel.value;
+    const year     = yearSel.value;
+    const semester = semSel.value;
+    if (!subject) return;
+
+    openBtn.disabled = true;
+    openMsg.className = "status-msg info";
+    openMsg.textContent = "Opening session…";
+    openMsg.classList.remove("hidden");
+
+    try {
+      const res  = await fetch("/api/faculty/sessions/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, year, semester }),
+      });
+      const data = await res.json();
+      openMsg.className = data.success ? "status-msg success" : "status-msg error";
+      openMsg.textContent = data.message;
+      if (data.success) {
+        // reset form
+        yearSel.value = ""; semSel.innerHTML = '<option value="">-- Semester --</option>';
+        subjectSel.innerHTML = '<option value="">-- Subject --</option>';
+        semSel.disabled = true; subjectSel.disabled = true;
+      }
+      loadSessions();
+    } catch (e) {
+      openMsg.className = "status-msg error";
+      openMsg.textContent = "Network error. Please try again.";
+    }
+    openBtn.disabled = false;
+  });
+
+  // ── Load sessions ─────────────────────────────────────────────────
+  async function loadSessions() {
+    try {
+      const res  = await fetch("/api/faculty/sessions");
+      const data = await res.json();
+      if (!data.success) return;
+
+      const active  = data.sessions.filter(s => s.is_active);
+      const history = data.sessions.filter(s => !s.is_active);
+
+      renderActive(active);
+      renderHistory(history);
+    } catch (e) { /* silent */ }
+  }
+
+  function renderActive(sessions) {
+    const el = panel.querySelector("#lc-active-list");
+    if (!sessions.length) {
+      el.innerHTML = `<p class="status-msg" style="color:#6b7280">No active sessions right now. Open one above.</p>`;
+      return;
+    }
+    el.innerHTML = sessions.map(s => `
+      <div class="live-session-card" id="lcs-${s.id}" style="
+        display:flex;align-items:center;justify-content:space-between;
+        background:rgba(167,139,250,0.08);
+        border:1px solid rgba(167,139,250,0.3);
+        border-radius:12px;padding:14px 18px;margin-bottom:10px;flex-wrap:wrap;gap:12px
+      ">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:10px;height:10px;border-radius:50%;background:#4ade80;
+            box-shadow:0 0 8px #4ade80;animation:livePulse 1.5s ease-in-out infinite"></div>
+          <div>
+            <div style="font-weight:700;font-size:1rem">${s.subject}</div>
+            <div style="font-size:0.78rem;color:#9ca3af">${s.year} ${s.semester} • Opened: ${s.opened_at} •
+              <span style="color:#4ade80">${s.attendance_count} student${s.attendance_count!==1?'s':''} marked</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-secondary lc-close-btn" data-id="${s.id}" data-subject="${s.subject}"
+          style="border-color:#f87171;color:#f87171;padding:7px 16px;font-size:0.82rem">
+          ⏹ Close Session
+        </button>
+      </div>
+    `).join("");
+
+    // Attach close handlers
+    el.querySelectorAll(".lc-close-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id  = btn.dataset.id;
+        const sub = btn.dataset.subject;
+        if (!confirm(`Close live session for "${sub}"?`)) return;
+        btn.disabled = true;
+        btn.textContent = "Closing…";
+        const res  = await fetch(`/api/faculty/sessions/${id}/close`, { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          openMsg.className = "status-msg success";
+          openMsg.textContent = `✅ Session closed. ${data.attendance_count} attendance record(s) for ${data.subject}.`;
+          openMsg.classList.remove("hidden");
+        }
+        loadSessions();
+      });
+    });
+  }
+
+  function renderHistory(sessions) {
+    const el = panel.querySelector("#lc-history-list");
+    if (!sessions.length) {
+      el.innerHTML = `<p style="color:#6b7280;font-size:0.85rem">No closed sessions today yet.</p>`;
+      return;
+    }
+    el.innerHTML = `<table class="records-table"><thead><tr>
+      <th>Subject</th><th>Year / Sem</th><th>Opened</th><th>Closed</th><th>Students</th>
+    </tr></thead><tbody>
+      ${sessions.map(s => `<tr>
+        <td><strong>${s.subject}</strong></td>
+        <td>${s.year} ${s.semester}</td>
+        <td>${s.opened_at}</td>
+        <td>${s.closed_at || "–"}</td>
+        <td><span style="color:#4ade80;font-weight:700">${s.attendance_count}</span></td>
+      </tr>`).join("")}
+    </tbody></table>`;
+  }
+
+  panel.querySelector("#lc-refresh-btn").addEventListener("click", loadSessions);
+
+  // Auto-refresh every 15 seconds while tab is visible
+  const autoRefresh = setInterval(() => {
+    if (document.getElementById("panel-live-class") &&
+        document.getElementById("panel-live-class").classList.contains("active")) {
+      loadSessions();
+    }
+  }, 15000);
+
+  loadSessions();
 }
 
 /* ------------------------------------------------------------------ */

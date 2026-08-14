@@ -5,6 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PORT=4000
 
+# Speed up dlib compilation: use all available CPU cores
+ENV CMAKE_BUILD_PARALLEL_LEVEL=4
+ENV MAKEFLAGS="-j4"
+ENV DLIB_NO_GUI_SUPPORT=1
+
 # Install build tools and libraries for cmake, dlib, opencv, & psycopg2
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \

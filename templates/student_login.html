@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Login — Smart Lab Attendance</title>
+  <meta name="description" content="Secure student login with location and face verification for Smart Lab Attendance system.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/student_login.css') }}">
+</head>
+<body>
+
+<div class="sl-page">
+
+  <!-- Background animated orbs -->
+  <div class="sl-bg-orb sl-orb-1"></div>
+  <div class="sl-bg-orb sl-orb-2"></div>
+  <div class="sl-bg-orb sl-orb-3"></div>
+
+  <div class="sl-container">
+
+    <!-- Header -->
+    <div class="sl-header">
+      <div class="sl-logo">
+        <span class="sl-logo-icon">🎓</span>
+        <div>
+          <div class="sl-logo-title">Smart Lab Attendance</div>
+          <div class="sl-logo-sub">Student Portal</div>
+        </div>
+      </div>
+      <a href="/" class="sl-back-link">← Back to Main App</a>
+    </div>
+
+    <!-- Card -->
+    <div class="sl-card">
+
+      <!-- Step Progress Indicator -->
+      <div class="sl-steps" id="sl-steps">
+        <div class="sl-step active" id="step-dot-1">
+          <div class="sl-step-circle">1</div>
+          <div class="sl-step-label">Credentials</div>
+        </div>
+        <div class="sl-step-line" id="step-line-1"></div>
+        <div class="sl-step" id="step-dot-2">
+          <div class="sl-step-circle">2</div>
+          <div class="sl-step-label">Location</div>
+        </div>
+        <div class="sl-step-line" id="step-line-2"></div>
+        <div class="sl-step" id="step-dot-3">
+          <div class="sl-step-circle">3</div>
+          <div class="sl-step-label">Face Scan</div>
+        </div>
+      </div>
+
+      <!-- ==================== STEP 1: CREDENTIALS ==================== -->
+      <div class="sl-panel" id="panel-1">
+        <div class="sl-panel-header">
+          <div class="sl-panel-icon">🔐</div>
+          <h2 class="sl-panel-title">Student Login</h2>
+          <p class="sl-panel-desc">Enter your Roll Number and student password to begin</p>
+        </div>
+
+        <div class="sl-form">
+          <div class="sl-field">
+            <label class="sl-label" for="roll-number">Roll Number</label>
+            <div class="sl-input-wrap">
+              <span class="sl-input-icon">🎫</span>
+              <input type="text" id="roll-number" class="sl-input" placeholder="e.g. U16VH25S0001"
+                     autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+          <div class="sl-field">
+            <label class="sl-label" for="student-password">Password</label>
+            <div class="sl-input-wrap">
+              <span class="sl-input-icon">🔑</span>
+              <input type="password" id="student-password" class="sl-input" placeholder="••••••••••">
+              <button type="button" class="sl-eye-btn" id="toggle-password" title="Show/Hide password">👁</button>
+            </div>
+          </div>
+          <p id="step1-error" class="sl-error hidden"></p>
+          <button id="btn-step1" class="sl-btn sl-btn-primary">
+            <span id="btn-step1-text">Verify Credentials →</span>
+            <span id="btn-step1-spinner" class="sl-spinner hidden"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ==================== STEP 2: LOCATION ==================== -->
+      <div class="sl-panel hidden" id="panel-2">
+        <div class="sl-panel-header">
+          <div class="sl-panel-icon">📍</div>
+          <h2 class="sl-panel-title">Location Verification</h2>
+          <p class="sl-panel-desc">You must be within <strong id="allowed-radius-label">{{ allowed_radius }} m</strong> of the college</p>
+        </div>
+
+        <!-- Radar animation -->
+        <div class="sl-radar-wrap">
+          <div class="sl-radar" id="sl-radar">
+            <div class="sl-radar-sweep"></div>
+            <div class="sl-radar-ring sl-ring-1"></div>
+            <div class="sl-radar-ring sl-ring-2"></div>
+            <div class="sl-radar-ring sl-ring-3"></div>
+            <div class="sl-radar-center">
+              <span id="radar-icon">📡</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="location-status-box" class="sl-location-status">
+          <p id="location-status-text" class="sl-loc-text">Requesting location access…</p>
+          <p id="location-distance" class="sl-loc-dist hidden"></p>
+        </div>
+
+        <p id="step2-error" class="sl-error hidden"></p>
+        <button id="btn-step2" class="sl-btn sl-btn-primary hidden" disabled>
+          <span id="btn-step2-text">Proceed to Face Scan →</span>
+        </button>
+        <button id="btn-retry-location" class="sl-btn sl-btn-secondary hidden">🔄 Retry Location</button>
+      </div>
+
+      <!-- ==================== STEP 3: FACE SCAN ==================== -->
+      <div class="sl-panel hidden" id="panel-3">
+        <div class="sl-panel-header">
+          <div class="sl-panel-icon">🤳</div>
+          <h2 class="sl-panel-title">Face Verification</h2>
+          <p class="sl-panel-desc" id="face-scan-desc">Scanning for <strong id="face-scan-roll"></strong> — look directly at the camera</p>
+        </div>
+
+        <div class="sl-face-area">
+          <!-- Scan ring overlay around video -->
+          <div class="sl-face-frame" id="sl-face-frame">
+            <video id="face-video" class="sl-face-video" autoplay playsinline muted></video>
+            <canvas id="face-canvas" class="sl-face-canvas hidden"></canvas>
+            <div class="sl-scan-ring" id="sl-scan-ring"></div>
+            <div class="sl-scan-corners">
+              <span class="sl-corner tl"></span>
+              <span class="sl-corner tr"></span>
+              <span class="sl-corner bl"></span>
+              <span class="sl-corner br"></span>
+            </div>
+            <div class="sl-face-overlay" id="face-overlay">
+              <div class="sl-scan-label" id="scan-label">Initializing camera…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Liveness instructions -->
+        <div class="sl-liveness-bar" id="liveness-bar">
+          <div class="sl-liveness-step" id="lv-blink">
+            <div class="sl-lv-icon">👁️</div>
+            <div class="sl-lv-text">Blink your eyes</div>
+            <div class="sl-lv-check" id="lv-blink-check">⬜</div>
+          </div>
+          <div class="sl-liveness-step" id="lv-turn">
+            <div class="sl-lv-icon">↔️</div>
+            <div class="sl-lv-text">Turn head slightly</div>
+            <div class="sl-lv-check" id="lv-turn-check">⬜</div>
+          </div>
+        </div>
+
+        <p id="step3-status" class="sl-status-msg info">Starting liveness check…</p>
+        <p id="step3-error" class="sl-error hidden"></p>
+        <button id="btn-retry-face" class="sl-btn sl-btn-secondary hidden">🔄 Retry Scan</button>
+      </div>
+
+      <!-- ==================== SUCCESS PANEL ==================== -->
+      <div class="sl-panel hidden" id="panel-success">
+        <div class="sl-success-anim">
+          <div class="sl-success-ring"></div>
+          <div class="sl-success-icon">✅</div>
+        </div>
+        <h2 class="sl-success-title">Verified!</h2>
+        <p class="sl-success-msg">Welcome, <strong id="success-roll"></strong>.<br>All 3 checks passed. Redirecting to your dashboard…</p>
+        <div class="sl-progress-bar">
+          <div class="sl-progress-fill" id="redirect-progress"></div>
+        </div>
+      </div>
+
+    </div><!-- /sl-card -->
+
+    <p class="sl-footer-note">🔒 Secure • Location-verified • Face-authenticated</p>
+
+  </div><!-- /sl-container -->
+</div><!-- /sl-page -->
+
+<script>
+const CONFIG = {
+  collegeLat: {{ college_lat|tojson }},
+  collegeLon: {{ college_lon|tojson }},
+  allowedRadius: {{ allowed_radius|tojson }},
+  faceRecognitionAvailable: {{ face_recognition_available|tojson }},
+  startStep: {{ start_step|tojson }},
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let currentStep = 1;
+let studentRoll = "";
+let hasFace = true; // assume face enrolled if skipping step 1
+let stream = null;
+let livenessInterval = null;
+
+// Liveness state
+let blinkDone = false;
+let turnDone = false;
+let livenessComplete = false;
+let baseEar = null;
+let baseYaw = null;
+let livenessFramesSent = 0;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+
+function showError(id, msg) {
+  const el = $(id);
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+function clearError(id) {
+  const el = $(id);
+  el.textContent = "";
+  el.classList.add("hidden");
+}
+
+function setStepActive(n) {
+  for (let i = 1; i <= 3; i++) {
+    const dot = $(`step-dot-${i}`);
+    dot.classList.remove("active", "done");
+    if (i < n) dot.classList.add("done");
+    if (i === n) dot.classList.add("active");
+    if (i < 3) {
+      const line = $(`step-line-${i}`);
+      line.classList.toggle("done", i < n);
+    }
+  }
+}
+
+function showPanel(n) {
+  ["panel-1","panel-2","panel-3","panel-success"].forEach(id => {
+    $(id).classList.add("hidden");
+  });
+  const target = n === "success" ? "panel-success" : `panel-${n}`;
+  $(target).classList.remove("hidden");
+  $(target).classList.add("sl-panel-enter");
+  setTimeout(() => $(target).classList.remove("sl-panel-enter"), 400);
+}
+
+function setLoading(btnId, textId, spinnerId, loading) {
+  $(btnId).disabled = loading;
+  $(textId).classList.toggle("hidden", loading);
+  if (spinnerId) $(spinnerId).classList.toggle("hidden", !loading);
+}
+
+// ─── Toggle password visibility ───────────────────────────────────────────────
+$("toggle-password").addEventListener("click", () => {
+  const inp = $("student-password");
+  inp.type = inp.type === "password" ? "text" : "password";
+});
+
+// ─── STEP 1: Credentials ─────────────────────────────────────────────────────
+$("btn-step1").addEventListener("click", async () => {
+  clearError("step1-error");
+  const roll = $("roll-number").value.trim();
+  const pwd  = $("student-password").value;
+
+  if (!roll) { showError("step1-error", "Please enter your Roll Number."); return; }
+  if (!pwd)  { showError("step1-error", "Please enter your password."); return; }
+
+  setLoading("btn-step1", "btn-step1-text", "btn-step1-spinner", true);
+  try {
+    const res = await fetch("/api/student-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roll_number: roll, password: pwd })
+    });
+    const data = await res.json();
+    if (data.success) {
+      studentRoll = data.roll_number;
+      hasFace = data.has_face;
+      goToStep2();
+    } else {
+      showError("step1-error", data.message || "Login failed. Please try again.");
+    }
+  } catch (e) {
+    showError("step1-error", "Network error. Please try again.");
+  } finally {
+    setLoading("btn-step1", "btn-step1-text", "btn-step1-spinner", false);
+  }
+});
+
+// Enter key on step 1
+["roll-number","student-password"].forEach(id => {
+  $(id).addEventListener("keydown", e => { if (e.key === "Enter") $("btn-step1").click(); });
+});
+
+// ─── STEP 2: Location ─────────────────────────────────────────────────────────
+function goToStep2() {
+  currentStep = 2;
+  setStepActive(2);
+  showPanel(2);
+  startLocationCheck();
+}
+
+function startLocationCheck() {
+  $("location-status-text").textContent = "Requesting location access…";
+  $("location-distance").classList.add("hidden");
+  $("btn-step2").classList.add("hidden");
+  $("btn-retry-location").classList.add("hidden");
+  clearError("step2-error");
+  $("sl-radar").className = "sl-radar spinning";
+
+  if (!navigator.geolocation) {
+    showError("step2-error", "Geolocation is not supported by your browser.");
+    $("sl-radar").className = "sl-radar";
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      try {
+        const res = await fetch("/api/student-verify-location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat: latitude, lon: longitude })
+        });
+        const data = await res.json();
+        $("sl-radar").className = "sl-radar";
+
+        const distKm = (data.distance / 1000).toFixed(2);
+        const distEl = $("location-distance");
+        distEl.classList.remove("hidden");
+
+        if (data.within_range) {
+          $("location-status-text").textContent = "✅ You are within the college premises!";
+          $("location-status-text").style.color = "#4ade80";
+          distEl.textContent = `📏 Distance from college: ${distKm} km (within ${(data.allowed_radius/1000).toFixed(1)} km limit)`;
+          distEl.style.color = "#4ade80";
+          $("sl-radar").classList.add("success");
+          $("radar-icon").textContent = "✅";
+
+          const btn2 = $("btn-step2");
+          btn2.classList.remove("hidden");
+          btn2.disabled = false;
+        } else {
+          $("location-status-text").textContent = "❌ You are outside the college premises.";
+          $("location-status-text").style.color = "#f87171";
+          distEl.textContent = `📏 Distance: ${distKm} km — must be within ${(data.allowed_radius/1000).toFixed(1)} km`;
+          distEl.style.color = "#f87171";
+          $("sl-radar").classList.add("error");
+          $("radar-icon").textContent = "❌";
+          showError("step2-error", `You are ${distKm} km away from the college. You must be on campus to mark attendance.`);
+          $("btn-retry-location").classList.remove("hidden");
+        }
+      } catch (e) {
+        $("sl-radar").className = "sl-radar";
+        showError("step2-error", "Location verification failed. Please retry.");
+        $("btn-retry-location").classList.remove("hidden");
+      }
+    },
+    (err) => {
+      $("sl-radar").className = "sl-radar error";
+      $("radar-icon").textContent = "❌";
+      let msg = "Location access denied.";
+      if (err.code === 1) msg = "Location access was denied. Please allow it in your browser settings.";
+      if (err.code === 2) msg = "Location unavailable. Please check your device settings.";
+      if (err.code === 3) msg = "Location request timed out. Please try again.";
+      showError("step2-error", msg);
+      $("btn-retry-location").classList.remove("hidden");
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+$("btn-retry-location").addEventListener("click", startLocationCheck);
+
+$("btn-step2").addEventListener("click", () => {
+  goToStep3();
+});
+
+// ─── STEP 3: Face Scan ────────────────────────────────────────────────────────
+async function goToStep3() {
+  currentStep = 3;
+  setStepActive(3);
+  showPanel(3);
+  $("face-scan-roll").textContent = studentRoll;
+
+  if (!CONFIG.faceRecognitionAvailable) {
+    $("step3-status").textContent = "⚠ Face recognition not available on this server. Contact admin.";
+    $("step3-status").className = "sl-status-msg error";
+    return;
+  }
+
+  if (!hasFace) {
+    $("step3-status").textContent = "⚠ No face registered for your account. Contact admin to enroll.";
+    $("step3-status").className = "sl-status-msg error";
+    return;
+  }
+
+  await startCamera();
+  startLivenessCheck();
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 }, audio: false });
+    $("face-video").srcObject = stream;
+    $("scan-label").textContent = "Look at the camera";
+    $("sl-scan-ring").classList.add("active");
+  } catch (e) {
+    $("scan-label").textContent = "";
+    showError("step3-error", "Camera access denied. Please allow camera access and retry.");
+    $("btn-retry-face").classList.remove("hidden");
+  }
+}
+
+function captureFrame() {
+  const video = $("face-video");
+  const canvas = $("face-canvas");
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.9));
+}
+
+async function startLivenessCheck() {
+  $("step3-status").textContent = "Please blink and turn your head slightly…";
+  $("step3-status").className = "sl-status-msg info";
+  $("liveness-bar").classList.remove("hidden");
+
+  let checkCount = 0;
+  const MAX_CHECKS = 60; // ~30 seconds at 500ms interval
+
+  livenessInterval = setInterval(async () => {
+    if (livenessComplete) return;
+    checkCount++;
+    if (checkCount > MAX_CHECKS) {
+      clearInterval(livenessInterval);
+      showError("step3-error", "Liveness check timed out. Please retry.");
+      $("btn-retry-face").classList.remove("hidden");
+      $("step3-status").textContent = "";
+      return;
+    }
+
+    // Only send every 2nd frame to save bandwidth
+    livenessFramesSent++;
+    if (livenessFramesSent % 2 !== 0) return;
+
+    const blob = await captureFrame();
+    if (!blob) return;
+
+    const fd = new FormData();
+    fd.append("image", blob, "frame.jpg");
+    try {
+      const res = await fetch("/api/liveness-check", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!d.success) return;
+
+      // EAR baseline calibration
+      if (d.ear !== null && baseEar === null && checkCount < 5) {
+        baseEar = d.ear;
+      }
+      // Yaw baseline calibration
+      if (d.yaw !== null && baseYaw === null && checkCount < 5) {
+        baseYaw = d.yaw;
+      }
+
+      // Blink detection: EAR drops significantly below baseline
+      if (!blinkDone && d.ear !== null && baseEar !== null && d.ear < baseEar * 0.72) {
+        blinkDone = true;
+        $("lv-blink-check").textContent = "✅";
+        $("lv-blink").classList.add("done");
+      }
+
+      // Head turn detection: yaw offset > 12 degrees from baseline
+      if (!turnDone && d.yaw !== null && baseYaw !== null && Math.abs(d.yaw - baseYaw) > 12) {
+        turnDone = true;
+        $("lv-turn-check").textContent = "✅";
+        $("lv-turn").classList.add("done");
+      }
+
+      if (blinkDone && turnDone && !livenessComplete) {
+        livenessComplete = true;
+        clearInterval(livenessInterval);
+        await completeLiveness();
+      }
+    } catch (e) { /* ignore network errors during liveness */ }
+  }, 500);
+}
+
+async function completeLiveness() {
+  $("step3-status").textContent = "✅ Liveness confirmed. Capturing face…";
+  $("step3-status").className = "sl-status-msg success";
+  $("sl-scan-ring").classList.add("capturing");
+  $("scan-label").textContent = "Capturing…";
+
+  // Notify server that liveness passed
+  try {
+    await fetch("/api/liveness-complete", { method: "POST" });
+  } catch (e) {}
+
+  // Small delay for UX
+  await new Promise(r => setTimeout(r, 800));
+
+  // Capture final snapshot and send to targeted face verify
+  const blob = await captureFrame();
+  if (!blob) {
+    showError("step3-error", "Failed to capture image. Please retry.");
+    $("btn-retry-face").classList.remove("hidden");
+    $("step3-status").textContent = "";
+    return;
+  }
+
+  $("step3-status").textContent = "🔍 Verifying your identity…";
+  const fd = new FormData();
+  fd.append("image", blob, "face.jpg");
+
+  try {
+    const res = await fetch("/api/student-verify-face", { method: "POST", body: fd });
+    const data = await res.json();
+
+    if (data.success) {
+      stopCamera();
+      goToSuccess(data.roll_number, data.confidence);
+    } else {
+      $("step3-status").textContent = "";
+      showError("step3-error", data.message || "Face verification failed. Please try again.");
+      $("btn-retry-face").classList.remove("hidden");
+      $("sl-scan-ring").classList.remove("capturing");
+    }
+  } catch (e) {
+    showError("step3-error", "Network error during face verification. Please retry.");
+    $("btn-retry-face").classList.remove("hidden");
+    $("step3-status").textContent = "";
+  }
+}
+
+$("btn-retry-face").addEventListener("click", () => {
+  // Reset liveness state
+  blinkDone = false; turnDone = false; livenessComplete = false;
+  baseEar = null; baseYaw = null; livenessFramesSent = 0;
+  clearInterval(livenessInterval);
+
+  $("lv-blink-check").textContent = "⬜";
+  $("lv-turn-check").textContent = "⬜";
+  $("lv-blink").classList.remove("done");
+  $("lv-turn").classList.remove("done");
+  $("sl-scan-ring").classList.remove("capturing");
+  $("btn-retry-face").classList.add("hidden");
+  clearError("step3-error");
+
+  if (!stream) startCamera().then(() => startLivenessCheck());
+  else startLivenessCheck();
+});
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  clearInterval(livenessInterval);
+}
+
+// ─── SUCCESS ──────────────────────────────────────────────────────────────────
+function goToSuccess(roll, confidence) {
+  setStepActive("done-all");
+  // Mark all steps done
+  for (let i = 1; i <= 3; i++) {
+    const dot = $(`step-dot-${i}`);
+    dot.classList.remove("active");
+    dot.classList.add("done");
+  }
+  $("step-line-1").classList.add("done");
+  $("step-line-2").classList.add("done");
+
+  showPanel("success");
+  $("success-roll").textContent = roll;
+  if (confidence !== undefined) {
+    $("sl-success-msg") && ($("sl-success-msg").innerHTML = `Welcome, <strong>${roll}</strong>.<br>All 3 checks passed. Redirecting to your dashboard…`);
+  }
+
+  // Animate progress bar then redirect
+  const bar = $("redirect-progress");
+  let pct = 0;
+  const timer = setInterval(() => {
+    pct += 2;
+    bar.style.width = pct + "%";
+    if (pct >= 100) {
+      clearInterval(timer);
+      window.location.href = "/student-dashboard";
+    }
+  }, 40); // 2 seconds total
+}
+
+// Cleanup on page unload
+window.addEventListener("beforeunload", stopCamera);
+
+// ─── Auto-advance if coming from portal (step 1 already done) ─────────────────
+if (CONFIG.startStep === 2) {
+  // Session already has the roll from portal login; go straight to location
+  // We don't know the exact roll here, so fetch it from server via a test call
+  (async () => {
+    try {
+      // Quick probe: hitting /api/student-verify-location without coords to get the session roll
+      // Actually simpler: we read it from the page URL param or just call goToStep2 directly
+      // The session already has student_roll set by /api/student-login called on the portal
+      studentRoll = ""; // will be shown in face-scan-roll from session
+      $("face-scan-roll") && ($("face-scan-roll").textContent = "your account");
+      goToStep2();
+    } catch(e) { /* stay on step 1 */ }
+  })();
+}
+</script>
+</body>
+</html>

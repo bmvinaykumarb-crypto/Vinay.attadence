@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Attendance — Smart Lab Attendance</title>
+  <meta name="description" content="Personal student attendance dashboard for Smart Lab Attendance system.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/student_login.css') }}">
+</head>
+<body>
+
+<div class="sl-page">
+  <div class="sl-bg-orb sl-orb-1"></div>
+  <div class="sl-bg-orb sl-orb-2"></div>
+  <div class="sl-bg-orb sl-orb-3"></div>
+
+  <!-- Top Nav -->
+  <div class="sd-nav">
+    <div class="sl-logo">
+      <span class="sl-logo-icon">🎓</span>
+      <div>
+        <div class="sl-logo-title">Smart Lab Attendance</div>
+        <div class="sl-logo-sub">Student Dashboard</div>
+      </div>
+    </div>
+    <div class="sd-nav-right">
+      <div class="sd-user-badge">
+        <span class="sd-user-icon">👤</span>
+        <span class="sd-user-roll">{{ roll_number }}</span>
+      </div>
+      <button id="btn-logout" class="sl-btn sl-btn-secondary sd-logout-btn">🚪 Logout</button>
+    </div>
+  </div>
+
+  <div class="sd-container">
+
+    <!-- Welcome Banner -->
+    <div class="sd-welcome">
+      <div class="sd-welcome-left">
+        <div class="sd-avatar">{{ roll_number[0]|upper if roll_number else 'S' }}</div>
+        <div>
+          <h1 class="sd-welcome-title">Welcome back!</h1>
+          <p class="sd-welcome-roll">Roll Number: <strong>{{ roll_number }}</strong></p>
+          <p class="sd-welcome-time" id="sd-time"></p>
+        </div>
+      </div>
+      <div class="sd-verified-badge">
+        <span>✅ Verified</span>
+        <div class="sd-badge-sub">Location • Face</div>
+      </div>
+    </div>
+
+    <!-- ===================== LIVE SESSIONS BANNER ===================== -->
+    <div id="live-banner" class="sd-live-banner hidden">
+      <div class="sd-live-header">
+        <div class="sd-live-dot"></div>
+        <span class="sd-live-title">🔴 Live Classes Available — Mark Your Attendance!</span>
+      </div>
+      <div id="live-sessions-list" class="sd-live-list"></div>
+    </div>
+
+    <!-- Metric Cards -->
+    <div class="sd-metrics">
+      <div class="sd-metric">
+        <div class="sd-metric-icon" style="background: linear-gradient(135deg,#6366f1,#8b5cf6)">📚</div>
+        <div>
+          <div class="sd-metric-value">{{ total }}</div>
+          <div class="sd-metric-label">Total Sessions</div>
+        </div>
+      </div>
+      <div class="sd-metric">
+        <div class="sd-metric-icon" style="background: linear-gradient(135deg,#06b6d4,#0891b2)">📅</div>
+        <div>
+          <div class="sd-metric-value">{{ today_count }}</div>
+          <div class="sd-metric-label">Today's Attendance</div>
+        </div>
+      </div>
+      <div class="sd-metric">
+        <div class="sd-metric-icon" style="background: linear-gradient(135deg,#f59e0b,#d97706)">🧪</div>
+        <div>
+          <div class="sd-metric-value">{{ subjects_attended }}</div>
+          <div class="sd-metric-label">Subjects Attended</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== MARK ATTENDANCE SECTION ===================== -->
+    <div class="sd-mark-card">
+      <h3 class="sd-section-title">✍️ Mark Attendance</h3>
+      <p class="sd-mark-desc">Select a subject and mark your attendance for today's lab session.</p>
+
+      <div class="sd-mark-form">
+        <div class="sd-mark-selects">
+          <!-- Year selector -->
+          <div class="sd-sel-group">
+            <label class="sd-sel-label">Year</label>
+            <select id="sel-year" class="sd-select" onchange="onYearChange()">
+              <option value="">-- Select Year --</option>
+              {% for year in subjects_by_year_sem %}
+              <option value="{{ year }}">{{ year }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <!-- Semester selector -->
+          <div class="sd-sel-group">
+            <label class="sd-sel-label">Semester</label>
+            <select id="sel-sem" class="sd-select" onchange="onSemChange()" disabled>
+              <option value="">-- Select Semester --</option>
+            </select>
+          </div>
+          <!-- Subject selector -->
+          <div class="sd-sel-group">
+            <label class="sd-sel-label">Subject / Lab</label>
+            <select id="sel-subject" class="sd-select" disabled>
+              <option value="">-- Select Subject --</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="btn-mark" class="sl-btn sl-btn-primary sd-mark-btn" onclick="markAttendance()" disabled>
+          <span id="btn-mark-text">Mark My Attendance</span>
+          <span id="btn-mark-spinner" class="sl-spinner hidden"></span>
+        </button>
+      </div>
+
+      <div id="mark-result" class="sd-mark-result hidden"></div>
+    </div>
+
+    <!-- ===================== TODAY'S STATUS ===================== -->
+    <div class="sd-today-card">
+      <h3 class="sd-section-title">📅 Today's Attendance ({{ today_str }})</h3>
+      {% if today_records %}
+        {% for r in today_records %}
+        <div class="sd-today-row">
+          <span class="sd-status-dot present"></span>
+          <strong>{{ r.lab }}</strong>
+          <span class="sd-time-tag">⏰ {{ r.time }}</span>
+          <span class="sd-today-tag">Today</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="sd-today-row">
+          <span class="sd-status-dot absent"></span>
+          <span>No attendance marked yet for today.</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- ===================== RECORDS ===================== -->
+    <div class="sd-records-card">
+      <div class="sd-records-header">
+        <h3 class="sd-section-title">📋 Attendance Records</h3>
+        <div class="sd-view-toggle">
+          <button id="btn-view-subject" class="sd-toggle-btn active" onclick="setView('subject')">By Subject</button>
+          <button id="btn-view-date" class="sd-toggle-btn" onclick="setView('date')">By Date</button>
+        </div>
+      </div>
+
+      <!-- Subject view -->
+      <div id="view-subject">
+        {% if by_subject %}
+          {% for subj, recs in by_subject|dictsort %}
+          <div class="sd-subject-block">
+            <div class="sd-subject-header" onclick="this.parentElement.classList.toggle('open')">
+              <div class="sd-subject-info">
+                <span class="sd-subject-icon">🧪</span>
+                <span class="sd-subject-name">{{ subj }}</span>
+                <span class="sd-subject-count">{{ recs|length }} session{{ 's' if recs|length != 1 else '' }}</span>
+              </div>
+              <span class="sd-chevron">▼</span>
+            </div>
+            <div class="sd-subject-rows">
+              {% for r in recs %}
+              <div class="sd-record-row">
+                <span class="sd-rec-date">📅 {{ r.date }}</span>
+                <span class="sd-rec-time">⏰ {{ r.time }}</span>
+                {% if r.is_today %}<span class="sd-today-tag">Today</span>{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="sd-empty">No attendance records found yet. Mark your first attendance above!</p>
+        {% endif %}
+      </div>
+
+      <!-- Date view -->
+      <div id="view-date" class="hidden">
+        {% if records %}
+          {% set ns = namespace(prev_date='') %}
+          {% for r in records %}
+            {% if r.date != ns.prev_date %}
+              {% if ns.prev_date != '' %}</div>{% endif %}
+              <div class="sd-date-block {{ 'is-today' if r.date == today_str else '' }}">
+                <div class="sd-date-label">📅 {{ 'Today — ' if r.date == today_str else '' }}{{ r.date }}</div>
+              {% set ns.prev_date = r.date %}
+            {% endif %}
+            <div class="sd-record-row">
+              <span class="sd-rec-subj">🧪 {{ r.lab }}</span>
+              <span class="sd-rec-time">⏰ {{ r.time }}</span>
+            </div>
+          {% endfor %}
+          {% if records %}</div>{% endif %}
+        {% else %}
+          <p class="sd-empty">No records to show.</p>
+        {% endif %}
+      </div>
+
+    </div>
+
+  </div><!-- /sd-container -->
+</div><!-- /sl-page -->
+
+<script>
+// Data from server (no API call needed)
+const SUBJECTS_BY_YEAR_SEM = {{ subjects_by_year_sem|tojson }};
+const STUDENT_ROLL = {{ roll_number|tojson }};
+
+// ─── Clock ─────────────────────────────────────────────────────────────────
+function updateClock() {
+  const el = document.getElementById("sd-time");
+  if (el) el.textContent = new Date().toLocaleString("en-IN", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+}
+updateClock();
+setInterval(updateClock, 30000);
+
+// ─── Year / Semester / Subject dropdowns ───────────────────────────────────
+function onYearChange() {
+  const year = document.getElementById("sel-year").value;
+  const semSel = document.getElementById("sel-sem");
+  const subSel = document.getElementById("sel-subject");
+
+  semSel.innerHTML = '<option value="">-- Select Semester --</option>';
+  subSel.innerHTML = '<option value="">-- Select Subject --</option>';
+  subSel.disabled = true;
+  document.getElementById("btn-mark").disabled = true;
+
+  if (!year) { semSel.disabled = true; return; }
+  semSel.disabled = false;
+  const sems = Object.keys(SUBJECTS_BY_YEAR_SEM[year] || {});
+  sems.forEach(sem => {
+    const opt = document.createElement("option");
+    opt.value = sem; opt.textContent = sem;
+    semSel.appendChild(opt);
+  });
+}
+
+function onSemChange() {
+  const year = document.getElementById("sel-year").value;
+  const sem  = document.getElementById("sel-sem").value;
+  const subSel = document.getElementById("sel-subject");
+
+  subSel.innerHTML = '<option value="">-- Select Subject --</option>';
+  document.getElementById("btn-mark").disabled = true;
+
+  if (!sem) { subSel.disabled = true; return; }
+  subSel.disabled = false;
+
+  const subjects = (SUBJECTS_BY_YEAR_SEM[year] || {})[sem] || [];
+  subjects.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s; opt.textContent = s;
+    subSel.appendChild(opt);
+  });
+  subSel.onchange = () => {
+    document.getElementById("btn-mark").disabled = !subSel.value;
+  };
+}
+
+// ─── Mark Attendance ────────────────────────────────────────────────────────
+async function markAttendance() {
+  const subject = document.getElementById("sel-subject").value;
+  if (!subject) return;
+
+  const btn   = document.getElementById("btn-mark");
+  const txt   = document.getElementById("btn-mark-text");
+  const spin  = document.getElementById("btn-mark-spinner");
+  const result= document.getElementById("mark-result");
+
+  btn.disabled = true;
+  txt.classList.add("hidden");
+  spin.classList.remove("hidden");
+  result.className = "sd-mark-result hidden";
+  result.textContent = "";
+
+  try {
+    const res = await fetch("/api/mark-attendance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roll_number: STUDENT_ROLL, lab: subject })
+    });
+    const data = await res.json();
+
+    result.classList.remove("hidden");
+    if (data.success) {
+      result.className = "sd-mark-result success";
+      result.innerHTML = `✅ ${data.message}`;
+      // Reload page after 2s to show updated records
+      setTimeout(() => window.location.reload(), 2000);
+    } else {
+      result.className = "sd-mark-result error";
+      result.innerHTML = `❌ ${data.message}`;
+      btn.disabled = false;
+    }
+  } catch (e) {
+    result.classList.remove("hidden");
+    result.className = "sd-mark-result error";
+    result.textContent = "❌ Network error. Please try again.";
+    btn.disabled = false;
+  } finally {
+    txt.classList.remove("hidden");
+    spin.classList.add("hidden");
+  }
+}
+
+// ─── View toggle ────────────────────────────────────────────────────────────
+function setView(view) {
+  document.getElementById("view-subject").classList.toggle("hidden", view !== "subject");
+  document.getElementById("view-date").classList.toggle("hidden", view !== "date");
+  document.getElementById("btn-view-subject").classList.toggle("active", view === "subject");
+  document.getElementById("btn-view-date").classList.toggle("active", view === "date");
+}
+
+// ─── Live Sessions Polling ──────────────────────────────────────────────────
+const markedSessions = new Set(); // track locally to prevent double-clicks
+
+async function loadLiveSessions() {
+  try {
+    const res = await fetch("/api/student/live-sessions");
+    const data = await res.json();
+    const banner = document.getElementById("live-banner");
+    const list   = document.getElementById("live-sessions-list");
+
+    if (!data.success || !data.sessions || data.sessions.length === 0) {
+      banner.classList.add("hidden");
+      return;
+    }
+
+    banner.classList.remove("hidden");
+    list.innerHTML = data.sessions.map(s => {
+      const alreadyMarked = markedSessions.has(s.id);
+      return `
+        <div class="sd-live-item">
+          <div class="sd-live-item-info">
+            <span class="sd-live-subject">${s.subject}</span>
+            <span class="sd-live-meta">
+              ${s.year ? s.year + ' ' : ''}${s.semester ? s.semester + ' • ' : ''}
+              by ${s.faculty_name} • opened ${s.opened_at}
+            </span>
+          </div>
+          <button
+            class="sd-live-mark-btn ${alreadyMarked ? 'sd-live-marked' : ''}"
+            id="live-btn-${s.id}"
+            data-session-id="${s.id}"
+            ${alreadyMarked ? 'disabled' : ''}
+            onclick="markLiveAttendance(${s.id}, this)"
+          >
+            ${alreadyMarked ? '✅ Marked' : '✍️ Mark Attendance'}
+          </button>
+        </div>`;
+    }).join("");
+  } catch (e) { /* silent fail */ }
+}
+
+async function markLiveAttendance(sessionId, btn) {
+  btn.disabled = true;
+  btn.textContent = "Marking…";
+
+  try {
+    const res = await fetch("/api/student/mark-live-attendance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      markedSessions.add(sessionId);
+      btn.textContent = "✅ Marked";
+      btn.className = "sd-live-mark-btn sd-live-marked";
+      // Reload the page after 1.5s to show updated records
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      btn.textContent = "❌ " + (data.message || "Failed");
+      btn.className = "sd-live-mark-btn sd-live-error";
+      setTimeout(() => {
+        btn.textContent = "✍️ Mark Attendance";
+        btn.className = "sd-live-mark-btn";
+        btn.disabled = false;
+      }, 3000);
+    }
+  } catch (e) {
+    btn.textContent = "❌ Network Error";
+    btn.disabled = false;
+  }
+}
+
+// Poll every 15 seconds
+loadLiveSessions();
+setInterval(loadLiveSessions, 15000);
+
+// ─── Logout ─────────────────────────────────────────────────────────────────
+document.getElementById("btn-logout").addEventListener("click", async () => {
+  await fetch("/api/student-logout", { method: "POST" });
+  window.location.href = "/student-login";
+});
+</script>
+</body>
+</html>

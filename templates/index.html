@@ -20,41 +20,13 @@
   <header class="topbar">
     <h1><span class="text-neon-cyan">📝 Smart Lab Attendance</span></h1>
     <div class="topbar-actions">
-      <span id="role-badge" class="role-badge {% if user_role == 'admin' %}role-admin{% elif user_role == 'faculty' %}role-faculty{% endif %}" {% if user_role == 'student' %}style="display:none"{% endif %}>
+      <span id="role-badge" class="role-badge {% if user_role == 'admin' %}role-admin{% elif user_role == 'faculty' %}role-faculty{% endif %}">
         {{ '🛡️ Admin' if user_role == 'admin' else '👨‍🏫 Faculty' if user_role == 'faculty' else '' }}
       </span>
-      <button id="faculty-login-btn" class="btn btn-secondary" {% if user_role != 'student' %}style="display:none"{% endif %}>🔐 Faculty Login</button>
-      <button id="admin-login-btn" class="btn btn-admin" {% if user_role != 'student' %}style="display:none"{% endif %}>🔑 Admin Login</button>
-      <button id="logout-btn" class="btn btn-secondary" {% if user_role == 'student' %}style="display:none"{% endif %}>Logout</button>
+      <a href="/" class="btn btn-secondary" style="text-decoration:none">← Portal</a>
+      <button id="logout-btn" class="btn btn-secondary">Logout</button>
     </div>
   </header>
-
-  <div id="faculty-login-panel" class="card hidden">
-    <h3>🔐 Faculty Sign In</h3>
-    <div class="form-row">
-      <input type="email" id="faculty-email" placeholder="professor@college.edu">
-      <input type="password" id="faculty-password" placeholder="••••••••">
-    </div>
-    <div class="form-row">
-      <button id="faculty-signin-btn" class="btn btn-primary">Sign In as Faculty</button>
-      <button id="faculty-cancel-btn" class="btn btn-secondary">Cancel</button>
-    </div>
-    <p id="faculty-login-error" class="status-msg error hidden"></p>
-  </div>
-
-  <div id="admin-login-panel" class="card hidden">
-    <h3>🔑 Admin Sign In</h3>
-    <div class="section-note" style="border-left-color: var(--accent-purple)">Admin access provides faculty management, class assignments, and student record viewing capabilities.</div>
-    <div class="form-row">
-      <input type="email" id="admin-email" placeholder="admin@college.edu">
-      <input type="password" id="admin-password" placeholder="••••••••">
-    </div>
-    <div class="form-row">
-      <button id="admin-signin-btn" class="btn btn-admin">Sign In as Admin</button>
-      <button id="admin-cancel-btn" class="btn btn-secondary">Cancel</button>
-    </div>
-    <p id="admin-login-error" class="status-msg error hidden"></p>
-  </div>
 
   <div class="hero">
     <h2>Secure Attendance Dashboard</h2>

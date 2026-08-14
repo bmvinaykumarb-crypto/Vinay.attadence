@@ -22,6 +22,7 @@ from flask import (
     Flask, render_template, request, jsonify, session,
     send_file, redirect, url_for
 )
+# pyrefly: ignore [missing-import]
 from flask_sqlalchemy import SQLAlchemy
 from geopy.distance import geodesic
 
@@ -58,9 +59,10 @@ FACULTY_ASSIGNMENTS_FILE = BASE_DIR / "faculty_assignments.csv"
 REGISTERED_FACES_DIR = BASE_DIR / "registered_faces"
 
 COLLEGE_LOCATION = (15.273740544380276, 76.37742920897117)
-ALLOWED_RADIUS_METERS = 4000
+ALLOWED_RADIUS_METERS = 40
 FACULTY_PASSWORD = "faculty123"
 ADMIN_PASSWORD = "admin@123"
+STUDENT_PASSWORD = "student@123"  # common password for all students
 
 SUBJECTS_BY_YEAR_SEM = {
     "1st Year": {
@@ -137,9 +139,21 @@ class FacultyAssignment(db.Model):
     assigned_date = db.Column(db.String(50))
 
 
-# --------------------------------------------------------------------------
-# Data helpers & Initialization
-# --------------------------------------------------------------------------
+class ClassSession(db.Model):
+    """A live class session opened by a faculty member.
+    Students can mark attendance while is_active=True."""
+    __tablename__ = "class_sessions"
+    id = db.Column(db.Integer, primary_key=True)
+    faculty_id = db.Column(db.String(100), nullable=False)   # email used as faculty id
+    faculty_name = db.Column(db.String(150), nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    year = db.Column(db.String(50), default="")
+    semester = db.Column(db.String(50), default="")
+    date = db.Column(db.String(20), nullable=False)
+    opened_at = db.Column(db.String(20), nullable=False)
+    closed_at = db.Column(db.String(20), default="")
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
 def init_db():
     REGISTERED_FACES_DIR.mkdir(exist_ok=True)
     with app.app_context():
@@ -465,13 +479,26 @@ init_db()
 # --------------------------------------------------------------------------
 @app.route("/")
 def index():
+    """Front portal — login chooser for Student / Faculty / Admin."""
+    return render_template(
+        "portal.html",
+        face_recognition_available=FACE_RECOGNITION_AVAILABLE,
+    )
+
+
+@app.route("/app")
+def main_app():
+    """Full attendance management app (Faculty & Admin).
+    Students who are not faculty/admin are redirected to the portal."""
+    if session.get("user_role") not in ("faculty", "admin"):
+        return redirect(url_for("index"))
     return render_template(
         "index.html",
         user_role=session["user_role"],
         username=session["username"],
         subjects_by_year_sem=SUBJECTS_BY_YEAR_SEM,
         all_subjects=ALL_SUBJECTS,
-        selected_subject=session["selected_subject"],
+        selected_subject=session.get("selected_subject", "C Programing"),
         face_recognition_available=FACE_RECOGNITION_AVAILABLE,
         allowed_radius=ALLOWED_RADIUS_METERS,
         college_lat=COLLEGE_LOCATION[0],
@@ -1149,6 +1176,456 @@ def api_admin_student_report_download():
     df.to_csv(buf, index=False)
     buf.seek(0)
     return send_file(buf, mimetype="text/csv", as_attachment=True, download_name=filename)
+
+
+# --------------------------------------------------------------------------
+# Student Login & Dashboard
+# --------------------------------------------------------------------------
+@app.get("/student-login")
+def student_login_page():
+    """Serve the student login page (separate from main app).
+    If credentials already verified (step 1 done), go straight to step 2.
+    If fully verified, redirect to dashboard.
+    """
+    if session.get("student_verified") and session.get("student_roll"):
+        return redirect(url_for("student_dashboard"))
+    # Detect if coming from portal (step 1 already done)
+    start_step = 2 if session.get("student_roll") and not session.get("student_verified") else 1
+    return render_template(
+        "student_login.html",
+        college_lat=COLLEGE_LOCATION[0],
+        college_lon=COLLEGE_LOCATION[1],
+        allowed_radius=ALLOWED_RADIUS_METERS,
+        face_recognition_available=FACE_RECOGNITION_AVAILABLE,
+        start_step=start_step,
+    )
+
+
+@app.post("/api/student-login")
+def api_student_login():
+    """Step 1: Verify roll number exists in registry + check common password."""
+    data = request.get_json(force=True)
+    roll_number = (data.get("roll_number") or "").strip()
+    password = data.get("password") or ""
+
+    if not roll_number:
+        return jsonify(success=False, message="Please enter your Roll Number."), 400
+    if password != STUDENT_PASSWORD:
+        return jsonify(success=False, message="Incorrect password."), 401
+
+    # Check that the roll number exists in the student registry
+    student = StudentRegistry.query.filter_by(roll_number=roll_number).first()
+    if not student:
+        return jsonify(
+            success=False,
+            message=f"Roll Number '{roll_number}' is not registered. Please contact your administrator."
+        ), 404
+
+    # Check if a face encoding exists for this student
+    has_face = bool(student.face_encoding and len(student.face_encoding.strip()) > 10)
+
+    # Store roll in session for subsequent steps
+    session["student_roll"] = roll_number
+    session["student_verified"] = False
+    session["student_location_ok"] = False
+
+    return jsonify(
+        success=True,
+        roll_number=roll_number,
+        has_face=has_face,
+        message="Credentials verified. Proceeding to location check."
+    )
+
+
+@app.post("/api/student-verify-location")
+def api_student_verify_location():
+    """Step 2: Verify the student is within the college geofence."""
+    if not session.get("student_roll"):
+        return jsonify(success=False, message="Please complete Step 1 first."), 403
+
+    data = request.get_json(force=True)
+    try:
+        lat = float(data["lat"])
+        lon = float(data["lon"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify(success=False, message="Invalid coordinates."), 400
+
+    within_range, distance = is_within_range(lat, lon)
+    if within_range:
+        session["student_location_ok"] = True
+
+    return jsonify(
+        success=True,
+        within_range=within_range,
+        distance=round(distance, 1),
+        allowed_radius=ALLOWED_RADIUS_METERS,
+    )
+
+
+@app.post("/api/student-verify-face")
+def api_student_verify_face():
+    """
+    Step 3: Match the uploaded face snapshot ONLY against the face encoding
+    stored for the currently logged-in student (identified by session roll number).
+    This is a 1:1 targeted match — not a search across all students.
+    """
+    if not FACE_RECOGNITION_AVAILABLE:
+        return jsonify(success=False, message="Face recognition is not available on this server."), 400
+
+    roll_number = session.get("student_roll")
+    if not roll_number:
+        return jsonify(success=False, message="Please complete Step 1 (credentials) first."), 403
+
+    if not session.get("student_location_ok"):
+        return jsonify(success=False, message="Please complete Step 2 (location) first."), 403
+
+    if "image" not in request.files:
+        return jsonify(success=False, message="No image provided."), 400
+
+    # Fetch the registered encoding for THIS specific student only
+    student = StudentRegistry.query.filter_by(roll_number=roll_number).first()
+    if not student:
+        return jsonify(success=False, message="Student not found."), 404
+
+    registered_encoding = deserialize_face_encoding(student.face_encoding or "")
+    if registered_encoding is None:
+        return jsonify(
+            success=False,
+            message="No face enrolled for this student. Please contact your administrator."
+        ), 400
+
+    try:
+        image = Image.open(request.files["image"]).convert("RGB")
+        image_np = np.array(image)
+
+        face_encodings = face_recognition.face_encodings(image_np)
+        if not face_encodings:
+            return jsonify(success=False, message="No face detected. Please look directly at the camera."), 400
+        if len(face_encodings) > 1:
+            return jsonify(success=False, message="Multiple faces detected. Please ensure only your face is in the frame."), 400
+
+        unknown_encoding = face_encodings[0]
+
+        # 1-vs-1 targeted match
+        matches = face_recognition.compare_faces([registered_encoding], unknown_encoding, tolerance=0.55)
+        face_distance = face_recognition.face_distance([registered_encoding], unknown_encoding)[0]
+
+        if matches[0]:
+            # Mark student as fully verified in session
+            session["student_verified"] = True
+            session["user_role"] = "student"
+            session["username"] = roll_number
+            confidence = round((1 - float(face_distance)) * 100, 1)
+            return jsonify(
+                success=True,
+                roll_number=roll_number,
+                confidence=confidence,
+                message=f"Face verified! Welcome, {roll_number}."
+            )
+        else:
+            confidence = round((1 - float(face_distance)) * 100, 1)
+            return jsonify(
+                success=False,
+                message=f"Face did not match the registered face for Roll Number {roll_number}. Please try again.",
+                confidence=confidence
+            ), 401
+
+    except Exception as e:
+        return jsonify(success=False, message=f"Error processing face: {str(e)}"), 500
+
+
+@app.get("/student-dashboard")
+def student_dashboard():
+    """Personal student dashboard — requires full 3-step verification.
+    All data is passed server-side so the page works even if the JS fetch
+    cannot re-authenticate (avoids blank page after redirect)."""
+    if not session.get("student_verified") or not session.get("student_roll"):
+        return redirect(url_for("student_login_page"))
+
+    roll_number = session["student_roll"]
+
+    # Fetch all records for this student
+    records_raw = AttendanceRecord.query.filter_by(roll_number=roll_number).order_by(
+        AttendanceRecord.date.desc(), AttendanceRecord.time.desc()
+    ).all()
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    records = []
+    for r in records_raw:
+        records.append({
+            "date": r.date,
+            "time": r.time,
+            "lab": r.lab,
+            "is_today": r.date == today_str,
+        })
+
+    today_records = [r for r in records if r["is_today"]]
+    today_count = len(today_records)
+
+    # Group by subject
+    by_subject = {}
+    for rec in records:
+        subj = rec["lab"]
+        if subj not in by_subject:
+            by_subject[subj] = []
+        by_subject[subj].append(rec)
+
+    return render_template(
+        "student_dashboard.html",
+        roll_number=roll_number,
+        all_subjects=ALL_SUBJECTS,
+        subjects_by_year_sem=SUBJECTS_BY_YEAR_SEM,
+        records=records,
+        today_records=today_records,
+        today_count=today_count,
+        total=len(records),
+        by_subject=by_subject,
+        subjects_attended=len(by_subject),
+        today_str=today_str,
+    )
+
+
+
+@app.get("/api/student/my-records")
+def api_student_my_records():
+    """Return only the attendance records for the currently logged-in student."""
+    if not session.get("student_verified") or not session.get("student_roll"):
+        return jsonify(success=False, message="Not authenticated."), 403
+
+    roll_number = session["student_roll"]
+    records = AttendanceRecord.query.filter_by(roll_number=roll_number).order_by(
+        AttendanceRecord.date.desc(), AttendanceRecord.time.desc()
+    ).all()
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    data = []
+    for r in records:
+        data.append({
+            "date": r.date,
+            "time": r.time,
+            "lab": r.lab,
+            "is_today": r.date == today_str
+        })
+
+    today_count = sum(1 for r in data if r["is_today"])
+
+    # Group by subject
+    by_subject = {}
+    for rec in data:
+        subj = rec["lab"]
+        if subj not in by_subject:
+            by_subject[subj] = []
+        by_subject[subj].append(rec)
+
+    return jsonify(
+        success=True,
+        roll_number=roll_number,
+        total=len(data),
+        today_count=today_count,
+        records=data,
+        by_subject=by_subject,
+    )
+
+
+@app.post("/api/student-logout")
+def api_student_logout():
+    """Clear student session."""
+    session.pop("student_roll", None)
+    session.pop("student_verified", None)
+    session.pop("student_location_ok", None)
+    session["user_role"] = "student"
+    session["username"] = "Student"
+    return jsonify(success=True)
+
+
+# --------------------------------------------------------------------------
+# Live Class Sessions — Faculty routes
+# --------------------------------------------------------------------------
+
+def _require_faculty():
+    """Return (faculty_id, faculty_name) if logged in as faculty/admin, else None."""
+    role = session.get("user_role")
+    if role not in ("faculty", "admin"):
+        return None, None
+    fid = session.get("username", "")
+    # Try to get display name from registry
+    fac = FacultyRegistry.query.filter_by(email=fid).first()
+    fname = fac.name if fac else fid
+    return fid, fname
+
+
+@app.post("/api/faculty/sessions/open")
+def api_faculty_open_session():
+    """Faculty opens a live class session for a subject."""
+    fid, fname = _require_faculty()
+    if not fid:
+        return jsonify(success=False, message="Faculty login required."), 403
+
+    data = request.get_json(force=True)
+    subject = (data.get("subject") or "").strip()
+    year    = (data.get("year") or "").strip()
+    semester= (data.get("semester") or "").strip()
+
+    if not subject:
+        return jsonify(success=False, message="Subject is required."), 400
+
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+    time_str  = now.strftime("%H:%M:%S")
+
+    # Check if same faculty already has an active session for this subject today
+    existing = ClassSession.query.filter_by(
+        faculty_id=fid, subject=subject, date=today_str, is_active=True
+    ).first()
+    if existing:
+        return jsonify(
+            success=False,
+            message=f"You already have an active session for '{subject}'. Please close it first."
+        ), 400
+
+    new_session = ClassSession(
+        faculty_id=fid,
+        faculty_name=fname,
+        subject=subject,
+        year=year,
+        semester=semester,
+        date=today_str,
+        opened_at=time_str,
+        is_active=True,
+    )
+    db.session.add(new_session)
+    db.session.commit()
+    return jsonify(
+        success=True,
+        session_id=new_session.id,
+        message=f"Live session opened for '{subject}'. Students can now mark attendance.",
+        subject=subject,
+        opened_at=time_str,
+    )
+
+
+@app.post("/api/faculty/sessions/<int:session_id>/close")
+def api_faculty_close_session(session_id):
+    """Faculty closes a live class session."""
+    fid, _ = _require_faculty()
+    if not fid:
+        return jsonify(success=False, message="Faculty login required."), 403
+
+    cs = ClassSession.query.filter_by(id=session_id).first()
+    if not cs:
+        return jsonify(success=False, message="Session not found."), 404
+    if cs.faculty_id != fid:
+        return jsonify(success=False, message="You can only close your own sessions."), 403
+    if not cs.is_active:
+        return jsonify(success=False, message="Session already closed."), 400
+
+    cs.is_active = False
+    cs.closed_at = datetime.now().strftime("%H:%M:%S")
+    db.session.commit()
+
+    # How many students marked attendance in this session
+    count = AttendanceRecord.query.filter_by(
+        lab=cs.subject, date=cs.date
+    ).count()
+
+    return jsonify(
+        success=True,
+        message=f"Session for '{cs.subject}' closed.",
+        subject=cs.subject,
+        attendance_count=count,
+    )
+
+
+@app.get("/api/faculty/sessions")
+def api_faculty_sessions():
+    """Return today's sessions for the logged-in faculty member."""
+    fid, _ = _require_faculty()
+    if not fid:
+        return jsonify(success=False, message="Faculty login required."), 403
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    sessions = ClassSession.query.filter_by(
+        faculty_id=fid, date=today_str
+    ).order_by(ClassSession.opened_at.desc()).all()
+
+    result = []
+    for s in sessions:
+        # Count students who marked attendance in this session
+        count = AttendanceRecord.query.filter_by(
+            lab=s.subject, date=s.date
+        ).count()
+        result.append({
+            "id": s.id,
+            "subject": s.subject,
+            "year": s.year,
+            "semester": s.semester,
+            "opened_at": s.opened_at,
+            "closed_at": s.closed_at or "",
+            "is_active": s.is_active,
+            "attendance_count": count,
+        })
+    return jsonify(success=True, sessions=result)
+
+
+# --------------------------------------------------------------------------
+# Live Class Sessions — Student routes
+# --------------------------------------------------------------------------
+
+@app.get("/api/student/live-sessions")
+def api_student_live_sessions():
+    """Return all currently active class sessions (visible to any verified student)."""
+    # Students don't need to be logged in to poll — sessions are public broadcast
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    sessions = ClassSession.query.filter_by(
+        date=today_str, is_active=True
+    ).order_by(ClassSession.opened_at.desc()).all()
+
+    result = []
+    for s in sessions:
+        result.append({
+            "id": s.id,
+            "subject": s.subject,
+            "year": s.year,
+            "semester": s.semester,
+            "faculty_name": s.faculty_name,
+            "opened_at": s.opened_at,
+        })
+    return jsonify(success=True, sessions=result)
+
+
+@app.post("/api/student/mark-live-attendance")
+def api_student_mark_live_attendance():
+    """Student marks attendance for an active live session.
+    Requires the student to be fully verified (3-step login complete)."""
+    if not session.get("student_verified") or not session.get("student_roll"):
+        return jsonify(success=False, message="Please complete the student login first."), 403
+
+    data = request.get_json(force=True)
+    session_id = data.get("session_id")
+
+    if not session_id:
+        return jsonify(success=False, message="Session ID is required."), 400
+
+    cs = ClassSession.query.filter_by(id=int(session_id), is_active=True).first()
+    if not cs:
+        return jsonify(
+            success=False,
+            message="This class session is no longer active or does not exist."
+        ), 404
+
+    roll_number = session["student_roll"]
+
+    # Check if student is registered
+    student = StudentRegistry.query.filter_by(roll_number=roll_number).first()
+    if not student:
+        return jsonify(
+            success=False,
+            message=f"Roll Number '{roll_number}' is not registered. Please contact your administrator."
+        ), 404
+
+    # Mark attendance (reuses existing business logic)
+    ok, msg = mark_attendance(roll_number, cs.subject)
+    return jsonify(success=ok, message=msg, roll_number=roll_number, subject=cs.subject)
 
 
 if __name__ == "__main__":
