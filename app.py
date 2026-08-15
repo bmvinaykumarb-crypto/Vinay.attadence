@@ -59,7 +59,7 @@ FACULTY_ASSIGNMENTS_FILE = BASE_DIR / "faculty_assignments.csv"
 REGISTERED_FACES_DIR = BASE_DIR / "registered_faces"
 
 COLLEGE_LOCATION = (15.273740544380276, 76.37742920897117)
-ALLOWED_RADIUS_METERS = 40
+ALLOWED_RADIUS_METERS = 4000    
 FACULTY_PASSWORD = "faculty123"
 ADMIN_PASSWORD = "admin@123"
 STUDENT_PASSWORD = "student@123"  # common password for all students
@@ -82,7 +82,7 @@ SUBJECTS_BY_YEAR_SEM = {
 ALL_SUBJECTS = [
     "Python", "Operating System", "Computer Graphics", "DataStructure", "Cpp",
     "DBMS", "DigitalLogics", "JAVA", "WebDesigen", "C Programing",
-    "R Programing", "C.prog", "MAD", "WCMS",
+    "C#", "AILML", "PHP", "DAA",
 ]
 
 app = Flask(__name__)
@@ -641,7 +641,7 @@ def api_scan_face():
 
     # Enforce liveness token
     liveness_ts = session.get("liveness_verified_at")
-    LIVENESS_WINDOW_SECONDS = 30
+    LIVENESS_WINDOW_SECONDS = 50
     if not liveness_ts or (time.time() - liveness_ts) > LIVENESS_WINDOW_SECONDS:
         return jsonify(
             success=False,
