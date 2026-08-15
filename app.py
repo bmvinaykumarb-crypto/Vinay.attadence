@@ -632,7 +632,7 @@ def api_scan_qr():
 def api_scan_face():
     """
     Match a face snapshot against the registry and mark attendance.
-    Requires a recent liveness verification (within 30 seconds).
+    Requires a recent liveness verification (within 50 seconds).
     """
     if not FACE_RECOGNITION_AVAILABLE:
         return jsonify(success=False, message="Face recognition library is not available."), 400
