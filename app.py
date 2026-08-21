@@ -14,6 +14,7 @@ import warnings
 from io import BytesIO
 from pathlib import Path
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -304,7 +305,7 @@ def mark_attendance(roll_number, lab):
     if not roll_number:
         return False, "Roll number cannot be empty."
 
-    now = datetime.now()
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
     current_date = now.strftime("%Y-%m-%d")
     current_time = now.strftime("%H:%M:%S")
     day_of_week = now.weekday()  # 0=Monday ... 4=Friday, 5=Saturday, 6=Sunday
@@ -373,7 +374,7 @@ def enroll_student(roll_number, face_image_file=None):
 
     new_student = StudentRegistry(
         roll_number=str(roll_number),
-        registration_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        registration_date=datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S"),
         face_encoding=serialized_encoding,
         face_path=image_path
     )
@@ -821,7 +822,7 @@ def api_students():
 @app.get("/api/records")
 def api_records():
     df = load_data()
-    date_str = request.args.get("date") or datetime.now().strftime("%Y-%m-%d")
+    date_str = request.args.get("date") or datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     lab_filter = request.args.get("lab", "All")
 
     filtered = df[df["Date"] == date_str]
@@ -942,7 +943,7 @@ def api_records_delete_all():
 @app.get("/api/summary")
 def api_summary():
     df = load_data()
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     return jsonify(
         total_records=len(df),
         today_count=int(df[df["Date"] == today_str].shape[0]),
@@ -987,7 +988,7 @@ def api_admin_faculty_add():
         name=name,
         email=email,
         department=department,
-        added_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        added_date=datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S")
     )
     db.session.add(new_faculty)
     db.session.commit()
@@ -1058,7 +1059,7 @@ def api_admin_assignment_add():
         year=year,
         semester=semester,
         subject=subject,
-        assigned_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        assigned_date=datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d %H:%M:%S")
     )
     db.session.add(new_assign)
     db.session.commit()
@@ -1349,7 +1350,7 @@ def student_dashboard():
         AttendanceRecord.date.desc(), AttendanceRecord.time.desc()
     ).all()
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     records = []
     for r in records_raw:
         records.append({
@@ -1397,7 +1398,7 @@ def api_student_my_records():
         AttendanceRecord.date.desc(), AttendanceRecord.time.desc()
     ).all()
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     data = []
     for r in records:
         data.append({
@@ -1469,7 +1470,7 @@ def api_faculty_open_session():
     if not subject:
         return jsonify(success=False, message="Subject is required."), 400
 
-    now = datetime.now()
+    now = datetime.now(ZoneInfo("Asia/Kolkata"))
     today_str = now.strftime("%Y-%m-%d")
     time_str  = now.strftime("%H:%M:%S")
 
@@ -1520,7 +1521,7 @@ def api_faculty_close_session(session_id):
         return jsonify(success=False, message="Session already closed."), 400
 
     cs.is_active = False
-    cs.closed_at = datetime.now().strftime("%H:%M:%S")
+    cs.closed_at = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%H:%M:%S")
     db.session.commit()
 
     # How many students marked attendance in this session
@@ -1543,7 +1544,7 @@ def api_faculty_sessions():
     if not fid:
         return jsonify(success=False, message="Faculty login required."), 403
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     sessions = ClassSession.query.filter_by(
         faculty_id=fid, date=today_str
     ).order_by(ClassSession.opened_at.desc()).all()
@@ -1575,7 +1576,7 @@ def api_faculty_sessions():
 def api_student_live_sessions():
     """Return all currently active class sessions (visible to any verified student)."""
     # Students don't need to be logged in to poll — sessions are public broadcast
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     sessions = ClassSession.query.filter_by(
         date=today_str, is_active=True
     ).order_by(ClassSession.opened_at.desc()).all()
