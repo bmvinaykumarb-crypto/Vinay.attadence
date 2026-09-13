@@ -14,37 +14,77 @@ function initLocationGate() {
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-      statusEl.textContent = `✅ Location received: ${lat}, ${lon}`;
-      statusEl.className = "status-msg success";
+  statusEl.textContent = "📍 Detecting your location…";
+  statusEl.className = "status-msg info";
 
-      const res = await fetch("/api/verify-location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat, lon }),
-      });
-      const data = await res.json();
+  function doGeoRequest() {
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        statusEl.textContent = `📍 Location received. Verifying with server…`;
+        statusEl.className = "status-msg info";
 
-      if (!data.within_range) {
-        statusEl.textContent = `❌ You are ${data.distance}m away from college. Attendance can only be marked within ${data.allowed_radius}m.`;
+        try {
+          const res = await fetch("/api/verify-location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat, lon }),
+          });
+          const data = await res.json();
+
+          if (!data.within_range) {
+            statusEl.textContent = `❌ You are ${data.distance}m away from college. Attendance can only be marked within ${data.allowed_radius}m.`;
+            statusEl.className = "status-msg error";
+            return;
+          }
+          statusEl.textContent = `✅ Location verified (${data.distance}m from college)`;
+          statusEl.className = "status-msg success";
+          gate.classList.add("hidden");
+          appRoot.classList.remove("hidden");
+          initApp();
+        } catch (fetchErr) {
+          statusEl.textContent = "❌ Could not contact server. Please check your connection and try again.";
+          statusEl.className = "status-msg error";
+          showRetry();
+        }
+      },
+      (err) => {
+        const msgs = {
+          1: "❌ Location access denied. Please allow location in your browser settings and try again.",
+          2: "❌ Location unavailable. Check that your device location is enabled.",
+          3: "⏱️ Location request timed out. Please try again.",
+        };
+        statusEl.textContent = msgs[err.code] || "❌ Could not determine your location. Please try again.";
         statusEl.className = "status-msg error";
-        return;
+        showRetry();
+      },
+      {
+        enableHighAccuracy: false,  // Use network/Wi-Fi location (fast) instead of GPS
+        timeout: 8000,              // Give up after 8 seconds instead of hanging forever
+        maximumAge: 60000           // Accept a cached position up to 60 seconds old
       }
-      statusEl.textContent = `✅ Location verified (${data.distance}m from college)`;
-      statusEl.className = "status-msg success";
-      gate.classList.add("hidden");
-      appRoot.classList.remove("hidden");
-      initApp();
-    },
-    (err) => {
-      statusEl.textContent = "⚠️ Waiting for location permission… please allow location access in your browser.";
-      statusEl.className = "status-msg warning";
-    },
-    { enableHighAccuracy: true }
-  );
+    );
+  }
+
+  function showRetry() {
+    // Only add the button once
+    if (gate.querySelector("#location-retry-btn")) return;
+    const btn = document.createElement("button");
+    btn.id = "location-retry-btn";
+    btn.className = "btn btn-primary";
+    btn.style.marginTop = "12px";
+    btn.textContent = "🔄 Retry Location";
+    btn.addEventListener("click", () => {
+      btn.remove();
+      statusEl.textContent = "📍 Detecting your location…";
+      statusEl.className = "status-msg info";
+      doGeoRequest();
+    });
+    gate.appendChild(btn);
+  }
+
+  doGeoRequest();
 }
 
 /* ------------------------------------------------------------------ */
