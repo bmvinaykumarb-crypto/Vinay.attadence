@@ -176,11 +176,11 @@ function initAuth() {
   }
 
   // ── Faculty login panel (only exists if not using portal flow) ────
-  const loginBtn  = document.getElementById("faculty-login-btn");
-  const panel     = document.getElementById("faculty-login-panel");
+  const loginBtn = document.getElementById("faculty-login-btn");
+  const panel = document.getElementById("faculty-login-panel");
   const cancelBtn = document.getElementById("faculty-cancel-btn");
   const signinBtn = document.getElementById("faculty-signin-btn");
-  const errorEl   = document.getElementById("faculty-login-error");
+  const errorEl = document.getElementById("faculty-login-error");
 
   if (loginBtn && panel) {
     loginBtn.addEventListener("click", () => {
@@ -194,9 +194,9 @@ function initAuth() {
   }
   if (signinBtn) {
     signinBtn.addEventListener("click", async () => {
-      const email    = document.getElementById("faculty-email")?.value || "";
+      const email = document.getElementById("faculty-email")?.value || "";
       const password = document.getElementById("faculty-password")?.value || "";
-      const res  = await fetch("/api/faculty-login", {
+      const res = await fetch("/api/faculty-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -211,11 +211,11 @@ function initAuth() {
   }
 
   // ── Admin login panel (only exists if not using portal flow) ──────
-  const adminLoginBtn  = document.getElementById("admin-login-btn");
-  const adminPanel     = document.getElementById("admin-login-panel");
+  const adminLoginBtn = document.getElementById("admin-login-btn");
+  const adminPanel = document.getElementById("admin-login-panel");
   const adminCancelBtn = document.getElementById("admin-cancel-btn");
   const adminSigninBtn = document.getElementById("admin-signin-btn");
-  const adminErrorEl   = document.getElementById("admin-login-error");
+  const adminErrorEl = document.getElementById("admin-login-error");
 
   if (adminLoginBtn && adminPanel) {
     adminLoginBtn.addEventListener("click", () => {
@@ -228,9 +228,9 @@ function initAuth() {
   }
   if (adminSigninBtn) {
     adminSigninBtn.addEventListener("click", async () => {
-      const email    = document.getElementById("admin-email")?.value || "";
+      const email = document.getElementById("admin-email")?.value || "";
       const password = document.getElementById("admin-password")?.value || "";
-      const res  = await fetch("/api/admin-login", {
+      const res = await fetch("/api/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -1720,11 +1720,11 @@ function renderLiveClassTab(panel) {
   `;
 
   // ── Dropdown cascade ──────────────────────────────────────────────
-  const yearSel    = panel.querySelector("#lc-year");
-  const semSel     = panel.querySelector("#lc-sem");
+  const yearSel = panel.querySelector("#lc-year");
+  const semSel = panel.querySelector("#lc-sem");
   const subjectSel = panel.querySelector("#lc-subject");
-  const openBtn    = panel.querySelector("#lc-open-btn");
-  const openMsg    = panel.querySelector("#lc-open-msg");
+  const openBtn = panel.querySelector("#lc-open-btn");
+  const openMsg = panel.querySelector("#lc-open-msg");
 
   yearSel.addEventListener("change", () => {
     const year = yearSel.value;
@@ -1741,7 +1741,7 @@ function renderLiveClassTab(panel) {
 
   semSel.addEventListener("change", () => {
     const year = yearSel.value;
-    const sem  = semSel.value;
+    const sem = semSel.value;
     subjectSel.innerHTML = '<option value="">-- Subject --</option>';
     subjectSel.disabled = !sem;
     openBtn.disabled = true;
@@ -1755,8 +1755,8 @@ function renderLiveClassTab(panel) {
 
   // ── Open session ──────────────────────────────────────────────────
   openBtn.addEventListener("click", async () => {
-    const subject  = subjectSel.value;
-    const year     = yearSel.value;
+    const subject = subjectSel.value;
+    const year = yearSel.value;
     const semester = semSel.value;
     if (!subject) return;
 
@@ -1766,7 +1766,7 @@ function renderLiveClassTab(panel) {
     openMsg.classList.remove("hidden");
 
     try {
-      const res  = await fetch("/api/faculty/sessions/open", {
+      const res = await fetch("/api/faculty/sessions/open", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subject, year, semester }),
@@ -1791,11 +1791,11 @@ function renderLiveClassTab(panel) {
   // ── Load sessions ─────────────────────────────────────────────────
   async function loadSessions() {
     try {
-      const res  = await fetch("/api/faculty/sessions");
+      const res = await fetch("/api/faculty/sessions");
       const data = await res.json();
       if (!data.success) return;
 
-      const active  = data.sessions.filter(s => s.is_active);
+      const active = data.sessions.filter(s => s.is_active);
       const history = data.sessions.filter(s => !s.is_active);
 
       renderActive(active);
@@ -1822,7 +1822,7 @@ function renderLiveClassTab(panel) {
           <div>
             <div style="font-weight:700;font-size:1rem">${s.subject}</div>
             <div style="font-size:0.78rem;color:#9ca3af">${s.year} ${s.semester} • Opened: ${s.opened_at} •
-              <span style="color:#4ade80">${s.attendance_count} student${s.attendance_count!==1?'s':''} marked</span>
+              <span style="color:#4ade80">${s.attendance_count} student${s.attendance_count !== 1 ? 's' : ''} marked</span>
             </div>
           </div>
         </div>
@@ -1836,12 +1836,12 @@ function renderLiveClassTab(panel) {
     // Attach close handlers
     el.querySelectorAll(".lc-close-btn").forEach(btn => {
       btn.addEventListener("click", async () => {
-        const id  = btn.dataset.id;
+        const id = btn.dataset.id;
         const sub = btn.dataset.subject;
         if (!confirm(`Close live session for "${sub}"?`)) return;
         btn.disabled = true;
         btn.textContent = "Closing…";
-        const res  = await fetch(`/api/faculty/sessions/${id}/close`, { method: "POST" });
+        const res = await fetch(`/api/faculty/sessions/${id}/close`, { method: "POST" });
         const data = await res.json();
         if (data.success) {
           openMsg.className = "status-msg success";
@@ -1877,7 +1877,7 @@ function renderLiveClassTab(panel) {
   // Auto-refresh every 15 seconds while tab is visible
   const autoRefresh = setInterval(() => {
     if (document.getElementById("panel-live-class") &&
-        document.getElementById("panel-live-class").classList.contains("active")) {
+      document.getElementById("panel-live-class").classList.contains("active")) {
       loadSessions();
     }
   }, 15000);
