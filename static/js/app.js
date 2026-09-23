@@ -8,6 +8,14 @@ function initLocationGate() {
   const gate = document.getElementById("location-gate");
   const appRoot = document.getElementById("app-root");
 
+  // Faculty and Admin do not need location verification — skip the gate entirely
+  if (CFG.userRole === "faculty" || CFG.userRole === "admin") {
+    gate.classList.add("hidden");
+    appRoot.classList.remove("hidden");
+    initApp();
+    return;
+  }
+
   if (!navigator.geolocation) {
     statusEl.textContent = "❌ Geolocation is not supported by your browser.";
     statusEl.className = "status-msg error";
